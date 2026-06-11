@@ -1,53 +1,68 @@
 services:
   nginx:
     image: nginx:1.27-alpine
-    container_name: ai-commerce-nginx
+    container_name: nginx
     restart: unless-stopped
     depends_on:
       admin-web:
         condition: service_healthy
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ${NGINX_HOME:-/opt/docker/nginx}/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${NGINX_HOME:-/opt/docker/nginx}/conf/conf.d:/etc/nginx/conf.d:ro
+      - ${NGINX_HOME:-/opt/docker/nginx}/certs:/etc/nginx/certs:ro
+      - ${NGINX_HOME:-/opt/docker/nginx}/logs:/var/log/nginx
+      - ${STATIC_WEB_HOME:-/opt/html/jinhan-shop-web-test}:/usr/share/nginx/html/jinhan-shop-web:ro
+    security_opt:
+      - no-new-privileges:true
     networks:
       - edge
       - backend
 
   mysql:
     image: mysql:8.0
-    container_name: ai-commerce-mysql
+    container_name: mysql
     restart: unless-stopped
     command:
-      - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_APP_USERNAME}
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
-      TZ: Asia/Shanghai
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MYSQL_HOST_PORT:-33306}:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - ${MYSQL_HOME:-/opt/docker/mysql}/conf/jinhan.cnf:/etc/mysql/conf.d/jinhan.cnf:ro
+      - ${MYSQL_DATA_HOME:-/data/docker/mysql}:/var/lib/mysql
+      - ${MYSQL_LOG_HOME:-/opt/docker/mysql/logs}:/var/log/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 15
+      start_period: 30s
     networks:
       - backend
 
   redis:
     image: redis:7.2-alpine
-    container_name: ai-commerce-redis
+    container_name: redis
     restart: unless-stopped
-    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+    command: ["sh", "-c", "redis-server /usr/local/etc/redis/redis.conf --requirepass \"$${REDIS_PASSWORD}\""]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      TZ: Asia/Shanghai
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
-      - redis-data:/data
+      - ${REDIS_HOME:-/opt/docker/redis}/conf/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ${REDIS_DATA_HOME:-/data/docker/redis}:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
       interval: 10s
@@ -58,33 +73,48 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: ai-commerce-rabbitmq
+    container_name: rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
-      TZ: Asia/Shanghai
+      TZ: ${TZ:-Asia/Shanghai}
     ports:
+      - "127.0.0.1:${RABBITMQ_AMQP_HOST_PORT:-5672}:5672"
       - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
+      - ${RABBITMQ_DATA_HOME:-/data/docker/rabbitmq}:/var/lib/rabbitmq
+      - ${RABBITMQ_LOG_HOME:-/opt/docker/rabbitmq/logs}:/var/log/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 20s
+    networks:
+      - backend
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - ${MINIO_DATA_HOME:-/data/docker/minio}:/data
     networks:
       - backend
 
   config-server:
-    build:
-      context: ../..
-      dockerfile: docker/app/Dockerfile.runtime
-      args:
-        APP_JAR_FILE: docker/app/dist/config-server.jar
-    image: ${CONFIG_SERVER_IMAGE:-ai-commerce/config-server:prod}
-    container_name: ai-commerce-config-server
+    image: ${CONFIG_SERVER_IMAGE:-ai-commerce/config-server:test}
+    container_name: config-server
     restart: unless-stopped
     environment:
       SERVER_PORT: 8888
@@ -92,25 +122,24 @@ services:
       CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:/opt/ai-commerce/config-repo
       CONFIG_SERVER_USERNAME: ${CONFIG_SERVER_USERNAME}
       CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD}
-      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Dfile.encoding=UTF-8
+      JAVA_OPTS: ${CONFIG_SERVER_JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Dfile.encoding=UTF-8}
+      TZ: ${TZ:-Asia/Shanghai}
     volumes:
-      - ../../config-repo:/opt/ai-commerce/config-repo:ro
+      - ${CONFIG_REPO_HOME:-/opt/jinhan/ai-commerce-test/config-repo}:/opt/ai-commerce/config-repo:ro
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8888/actuator/health"]
+      test: ["CMD-SHELL", "curl -fsS -u \"$${CONFIG_SERVER_USERNAME}:$${CONFIG_SERVER_PASSWORD}\" http://localhost:8888/actuator/health >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 15
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
     networks:
       - backend
 
   admin-web:
-    build:
-      context: ../..
-      dockerfile: docker/app/Dockerfile.runtime
-      args:
-        APP_JAR_FILE: docker/app/dist/admin-web.jar
-    image: ${ADMIN_WEB_IMAGE:-ai-commerce/admin-web:prod}
-    container_name: ai-commerce-admin-web
+    image: ${ADMIN_WEB_IMAGE:-ai-commerce/admin-web:test}
+    container_name: jinhan-shop-admin-web
     restart: unless-stopped
     depends_on:
       mysql:
@@ -123,44 +152,52 @@ services:
         condition: service_healthy
     environment:
       SERVER_PORT: 8081
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: test
       SPRING_CLOUD_CONFIG_ENABLED: "true"
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
       SPRING_CLOUD_CONFIG_USERNAME: ${CONFIG_SERVER_USERNAME}
       SPRING_CLOUD_CONFIG_PASSWORD: ${CONFIG_SERVER_PASSWORD}
-      SPRING_CLOUD_CONFIG_PROFILE: ${SPRING_CLOUD_CONFIG_PROFILE}
-      SPRING_CLOUD_CONFIG_LABEL: ${SPRING_CLOUD_CONFIG_LABEL}
-      SPRING_CLOUD_CONFIG_FAIL_FAST: ${SPRING_CLOUD_CONFIG_FAIL_FAST}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
+      SPRING_CLOUD_CONFIG_PROFILE: ${SPRING_CLOUD_CONFIG_PROFILE:-test}
+      SPRING_CLOUD_CONFIG_LABEL: ${SPRING_CLOUD_CONFIG_LABEL:-main}
+      SPRING_CLOUD_CONFIG_FAIL_FAST: ${SPRING_CLOUD_CONFIG_FAIL_FAST:-true}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-jinhan_shop}
+      DB_URL: "${DB_URL:-jdbc:mysql://mysql:3306/jinhan_shop?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_DRIVER_CLASS_NAME: ${DB_DRIVER_CLASS_NAME}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
+      DB_DRIVER_CLASS_NAME: ${DB_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
-      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
-      JAVA_OPTS: -XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Dfile.encoding=UTF-8
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
+      JAVA_OPTS: ${ADMIN_WEB_JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Dfile.encoding=UTF-8}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "127.0.0.1:${ADMIN_WEB_HOST_PORT:-8081}:8081"
+    volumes:
+      - ${ADMIN_WEB_CONFIG_HOME:-/opt/jinhan/ai-commerce-test/admin-web/config}:/app/config:ro
+      - ${ADMIN_WEB_DATA_HOME:-/data/jinhan/ai-commerce-test/admin-web}:/app/data
+      - ${ADMIN_WEB_LOG_HOME:-/var/log/jinhan/ai-commerce-test/admin-web}:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 20
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
     networks:
       - backend
 
-volumes:
-  mysql-data:
-  redis-data:
-  rabbitmq-data:
-
 networks:
   edge:
+    name: jinhan-commerce-test-edge
     driver: bridge
   backend:
+    name: jinhan-commerce-test-backend
     driver: bridge
