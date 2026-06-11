@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:native}
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: ${CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS:file:/opt/ai-commerce/config-repo}
+  security:
+    user:
+      name: ${CONFIG_SERVER_USERNAME:config-server}
+      password: ${CONFIG_SERVER_PASSWORD:config-server-password}
+
+server:
+  port: ${SERVER_PORT:8888}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

@@ -1,0 +1,37 @@
+// 定义根项目名称
+rootProject.name = 'ai-commerce'
+
+// 包含公共模块
+include 'ai-commerce-common'
+include 'ai-commerce-auth'
+
+// 包含业务公共模块（父子工程）
+include 'ai-commerce-start'
+project(':ai-commerce-start').projectDir = file('ai-commerce-start')
+
+// 包含 jinHan-shop 业务模块（父子工程）
+include 'jinHan-shop'
+project(':jinHan-shop').projectDir = file('jinHan-shop')
+
+// 包含 jinHan-shop 下的子模块
+include 'jinHan-shop:jinHan-shop-core'
+include 'jinHan-shop:jinHan-shop-admin-web'
+
+
+include 'ai-commerce-start:ai-commerce-starter-file'
+findProject(':ai-commerce-start:ai-commerce-starter-file')?.name = 'ai-commerce-starter-file'
+
+include 'ai-commerce-start:ai-commerce-starter-mybatis'
+findProject(':ai-commerce-start:ai-commerce-starter-mybatis')?.name = 'ai-commerce-starter-mybatis'
+include 'ai-commerce-auth'
+include 'ai-commerce-start:ai-commerce-starter-cache'
+findProject(':ai-commerce-start:ai-commerce-starter-cache')?.name = 'ai-commerce-starter-cache'
+
+include 'ai-commerce-start:ai-commerce-starter-log'
+findProject(':ai-commerce-start:ai-commerce-starter-log')?.name = 'ai-commerce-starter-log'
+
+include 'ai-commerce-start:ai-commerce-starter-config'
+findProject(':ai-commerce-start:ai-commerce-starter-config')?.name = 'ai-commerce-starter-config'
+
+include 'ai-commerce-start:ai-commerce-starter-config-server'
+findProject(':ai-commerce-start:ai-commerce-starter-config-server')?.name = 'ai-commerce-starter-config-server'

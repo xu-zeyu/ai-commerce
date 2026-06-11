@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jinHan.shop.core.admin.domain.mapper.AdminMapper">
+    <select id="selectByRole" resultType="com.jinHan.shop.core.admin.domain.model.AdminPermission">
+        SELECT DISTINCT p.*
+        FROM admin_permission p
+        <choose>
+            <when test="roleId == 1">
+                <!-- 当roleId为1时，查询所有权限，不进行任何JOIN和WHERE过滤 -->
+            </when>
+            <otherwise>
+                <!-- 其他情况，按原逻辑进行关联查询 -->
+                INNER JOIN admin_role_permission rp ON p.id = rp.permission_id
+                INNER JOIN admin_role dr ON rp.role_id = dr.id
+                WHERE dr.id = #{roleId}
+            </otherwise>
+        </choose>
+    </select>
+    <select id="selectByRoleName" resultType="com.jinHan.shop.core.admin.domain.model.AdminRole">
+        SELECT DISTINCT r.*
+        FROM admin_role r
+                WHERE r.id = #{roleId}
+    </select>
+
+    <select id="selectAdminIdsByPermissionCode" resultType="java.lang.Long">
+        SELECT DISTINCT a.id
+        FROM admin a
+        INNER JOIN admin_role r ON a.role_id = r.id
+        LEFT JOIN admin_role_permission rp ON r.id = rp.role_id
+        LEFT JOIN admin_permission p ON rp.permission_id = p.id
+        WHERE r.deleted = 0
+          AND (a.role_id = 1 OR p.code = #{permissionCode})
+    </select>
+
+    <!-- 删除角色的所有权限 -->
+    <delete id="deleteRolePermissions">
+        DELETE FROM admin_role_permission WHERE role_id = #{roleId}
+    </delete>
+
+    <!-- 批量插入角色权限关联 -->
+    <insert id="batchInsertRolePermissions">
+        INSERT INTO admin_role_permission (role_id, permission_id) VALUES
+        <foreach collection="permissionIds" item="permissionId" separator=",">
+            (#{roleId}, #{permissionId})
+        </foreach>
+    </insert>
+</mapper>

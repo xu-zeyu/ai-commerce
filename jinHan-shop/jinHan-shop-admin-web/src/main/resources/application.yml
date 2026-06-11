@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: jinHan-shop-admin-web
+  cloud:
+    config:
+      enabled: ${SPRING_CLOUD_CONFIG_ENABLED:true}
+      fail-fast: ${SPRING_CLOUD_CONFIG_FAIL_FAST:false}
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8888}
+      username: ${SPRING_CLOUD_CONFIG_USERNAME:config-server}
+      password: ${SPRING_CLOUD_CONFIG_PASSWORD:config-server-password}
+      profile: ${SPRING_CLOUD_CONFIG_PROFILE:dev}
+      label: ${SPRING_CLOUD_CONFIG_LABEL:main}
+
+  web:
+    resources:
+      add-mappings: false
+
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+server:
+  port: ${SERVER_PORT:8081}
+  forward-headers-strategy: framework
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    auto-mapping-behavior: full
+  global-config:
+    db-config:
+      id-type: auto
+      update-strategy: not_null
+
+############## Sa-Token 配置 (文档: https://sa-token.cc) ##############
+sa-token:
+  token-name: Authorization
+  timeout: -1
+  active-timeout: -1
+  is-concurrent: false
+  is-share: false
+  token-style: random-64
+  is-log: true
+  token-prefix: Bearer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

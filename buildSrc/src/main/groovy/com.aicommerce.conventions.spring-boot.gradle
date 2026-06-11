@@ -1,0 +1,15 @@
+// 使用全限定类名替代插件ID
+apply plugin: org.springframework.boot.gradle.plugin.SpringBootPlugin
+apply plugin: io.spring.gradle.dependencymanagement.DependencyManagementPlugin
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.1.0"
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:2022.0.4"
+    }
+}
+
+dependencies {
+    // 添加加载 .env 文件的依赖
+    implementation 'io.github.cdimascio:java-dotenv:5.1.0'
+}

@@ -1,0 +1,10 @@
+allprojects {
+    group = "com.affections" +
+            "boot"
+    version = "0.0.1-SNAPSHOT"
+}
+
+// 配置仅应用与子模块
+subprojects {
+    apply from: "${rootDir}/buildSrc/src/main/groovy/com.aicommerce.conventions.java.gradle"
+}

@@ -1,0 +1,26 @@
+// 公共模块配置
+description = 'jinHan-shop 业务核心模块'
+
+apply from: "${rootDir}/buildSrc/src/main/groovy/com.aicommerce.conventions.spring-boot.gradle"
+
+// 这是一个库模块，不需要可执行的 bootJar
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}
+
+dependencies {
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok:1.18.26'
+    implementation(project(":ai-commerce-common"))
+    implementation(project(":ai-commerce-auth"))
+    api(project(":ai-commerce-start:ai-commerce-starter-mybatis"))
+    implementation(project(":ai-commerce-start:ai-commerce-starter-log"))
+}
+
+test {
+    useJUnitPlatform()
+}

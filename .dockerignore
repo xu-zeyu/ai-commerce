@@ -1,0 +1,7 @@
+.git
+.idea
+.gradle
+**/build
+**/.DS_Store
+**/.env
+docker/data

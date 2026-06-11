@@ -1,0 +1,12 @@
+apply plugin: 'java'
+apply plugin: 'java-library'
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}
+
+repositories {
+    maven { url "https://maven.aliyun.com/repository/public" }
+    maven { url "https://maven.aliyun.com/repository/central" }
+    mavenCentral()
+}

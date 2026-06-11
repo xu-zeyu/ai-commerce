@@ -1,0 +1,26 @@
+// 公共模块配置
+description = '业务文件上传'
+
+apply from: "${rootDir}/buildSrc/src/main/groovy/com.aicommerce.conventions.spring-boot.gradle"
+
+// 这是一个库模块，不需要可执行的 bootJar
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}
+
+dependencies {
+    implementation(project(":ai-commerce-common"))
+
+    api 'com.aliyun.oss:aliyun-sdk-oss:3.17.4'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok:1.18.26'
+}
+
+// 测试配置
+test {
+    useJUnitPlatform()
+}
