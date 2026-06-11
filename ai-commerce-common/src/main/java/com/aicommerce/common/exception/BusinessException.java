@@ -32,4 +32,13 @@ public class BusinessException extends RuntimeException {
         this.commonErrorCode = ErrorCodeEnum.FAIL;
     }
 
+    /**
+     * 业务异常属于预期内的流程控制，不是程序缺陷，其堆栈无排查价值。
+     * 重写后不再采集调用栈，日志里只保留一行提示，同时避免填充堆栈带来的性能开销。
+     */
+    @Override
+    public Throwable fillInStackTrace() {
+        return this;
+    }
+
 }
