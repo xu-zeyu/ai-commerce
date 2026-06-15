@@ -9,6 +9,8 @@ import com.jinHan.shop.admin.controller.admin.response.AdminInfoResponse;
 import com.jinHan.shop.core.admin.domain.handler.AdminCreateHandler;
 import com.jinHan.shop.core.admin.domain.mapper.AdminMapper;
 import com.jinHan.shop.core.admin.domain.model.Admin;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
@@ -26,6 +28,7 @@ import java.util.Map;
 @Validated
 @RestController
 @RequestMapping("/admin")
+@Tag(name = "管理员账号管理")
 public class AdminController {
 
     @Resource
@@ -34,6 +37,7 @@ public class AdminController {
     @Resource
     private AdminCreateHandler adminCreateHandler;
 
+    @Operation(summary = "获取当前管理员基础信息")
     @GetMapping("/self")
     public Result<Map<String, Object>> self() {
         Map<String, Object> result = new HashMap<>();
@@ -45,6 +49,7 @@ public class AdminController {
     }
 
     @Log(value = "获取管理员详细信息", operationType = "ADMIN_INFO")
+    @Operation(summary = "获取管理员详细信息")
     @GetMapping("/info")
     public Result<AdminInfoResponse> info() {
         Admin admin = adminMapper.selectById(StpUtil.getLoginId().toString());
@@ -53,6 +58,7 @@ public class AdminController {
     }
 
     @Log(value = "创建管理员", operationType = "ADMIN_CREATE")
+    @Operation(summary = "创建管理员")
     @PostMapping("/create")
     @SaCheckPermission("SUB_ADMIN")
     public Result<Void> create(@RequestBody @Valid AdminCreateRequest request) {

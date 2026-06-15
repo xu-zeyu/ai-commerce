@@ -8,6 +8,8 @@ import com.aicommerce.log.annotation.Log;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jinHan.shop.core.admin.domain.mapper.AdminMapper;
 import com.jinHan.shop.core.admin.domain.model.Admin;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/public/captcha")
+@Tag(name = "验证码管理")
 public class CaptchaController {
 
     @Resource
@@ -33,6 +36,7 @@ public class CaptchaController {
 
     @SaIgnore
     @Log(value = "生成登录验证码", operationType = "CAPTCHA_CREATE")
+    @Operation(summary = "生成登录验证码")
     @PostMapping("/login/{name}")
     public Result<String> create(@PathVariable @NotBlank String name) {
         LambdaQueryWrapper<Admin> lambdaQuery = new LambdaQueryWrapper<>();

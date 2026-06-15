@@ -22,7 +22,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
             // 登录校验。排除开放接口与 Spring 错误分发，避免 404/异常页面再次进入鉴权链。
             SaRouter
                     .match("/**")
-                    .notMatch("/login/sms", "/public/**", "/error")
+                    .notMatch("/login/sms", "/public/**", "/error", "/v3/api-docs", "/v3/api-docs/**")
                     .check(r -> StpUtil.checkLogin());
         })).addPathPatterns("/**");
     }
