@@ -26,7 +26,8 @@ public class GoodsCategoryPageQueryHandler {
     * */
     public IPage<GoodsCategory> queryPage(GoodsCategoryPageQueryCommand command) {
         LambdaQueryWrapper<GoodsCategory> wrapper = new LambdaQueryWrapper<GoodsCategory>()
-                .eq(command.getName() != null, GoodsCategory::getName, command.getName())
+                .eq(GoodsCategory::getParentId, command.getParentId())
+                .like(command.getName() != null, GoodsCategory::getName, command.getName())
                 .orderByDesc(GoodsCategory::getCreatedTime);
         return goodsCategoryMapper.selectPage(new Page<>(command.getPage(), command.getSize()), wrapper);
     }

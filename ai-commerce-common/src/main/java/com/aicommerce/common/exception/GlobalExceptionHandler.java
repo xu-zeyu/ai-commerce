@@ -5,7 +5,6 @@ import com.aicommerce.common.model.Result;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -14,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.stream.Collectors;
@@ -37,12 +37,31 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ) {
         String errorMessage = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
-                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                // isBindingFailure() 为 true 表示类型转换失败（如 Long 字段传入了非数字），
+                // 此时框架默认信息晦涩，统一返回明确的“参数类型错误”
+                .map(fieldError -> fieldError.isBindingFailure()
+                        ? "参数类型错误：" + fieldError.getField() + " 类型不正确"
+                        : fieldError.getDefaultMessage())
                 .orElse("参数错误");
 
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(Result.build(String.valueOf(status.value()), errorMessage));
+    }
+
+    /**
+     * 处理请求参数类型不匹配异常（@RequestParam / @PathVariable 类型转换失败）
+     * 例如 Long 类型参数传入了非数字，返回明确的“参数类型错误”
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Result<Void>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException e) {
+        String requiredType = e.getRequiredType() == null ? "" : e.getRequiredType().getSimpleName();
+        String errorMessage = String.format("参数类型错误：%s 应为 %s 类型", e.getName(), requiredType);
+        log.warn("参数类型不匹配: {}", errorMessage);
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                new BusinessException(ErrorCodeEnum.FAIL, errorMessage)
+        );
     }
 
     /**
