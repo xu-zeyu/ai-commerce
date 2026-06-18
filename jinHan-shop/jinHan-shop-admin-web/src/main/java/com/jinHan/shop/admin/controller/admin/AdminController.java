@@ -6,6 +6,7 @@ import com.aicommerce.common.model.Result;
 import com.aicommerce.log.annotation.Log;
 import com.jinHan.shop.admin.controller.admin.request.AdminCreateRequest;
 import com.jinHan.shop.admin.controller.admin.response.AdminInfoResponse;
+import com.jinHan.shop.core.admin.domain.constant.AdminPermissionConst;
 import com.jinHan.shop.core.admin.domain.handler.AdminCreateHandler;
 import com.jinHan.shop.core.admin.domain.mapper.AdminMapper;
 import com.jinHan.shop.core.admin.domain.model.Admin;
@@ -60,7 +61,7 @@ public class AdminController {
     @Log(value = "创建管理员", operationType = "ADMIN_CREATE")
     @Operation(summary = "创建管理员")
     @PostMapping("/create")
-    @SaCheckPermission("SUB_ADMIN")
+    @SaCheckPermission(AdminPermissionConst.SUB_ADMIN)
     public Result<Void> create(@RequestBody @Valid AdminCreateRequest request) {
         adminCreateHandler.create(request.toCommand());
         return Result.success();
