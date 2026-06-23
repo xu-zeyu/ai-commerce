@@ -7,15 +7,18 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jinHan.shop.core.admin.domain.constant.AdminPermissionConst;
 import com.jinHan.shop.core.goodsCategory.domain.command.GoodsCategoryCreateCommand;
 import com.jinHan.shop.core.goodsCategory.domain.command.GoodsCategoryPageQueryCommand;
+import com.jinHan.shop.core.goodsCategory.domain.command.GoodsCategoryUpdateCommand;
 import com.jinHan.shop.core.goodsCategory.domain.handler.GoodsCategoryCreateHandler;
 import com.jinHan.shop.core.goodsCategory.domain.handler.GoodsCategoryPageQueryHandler;
 import com.jinHan.shop.core.goodsCategory.domain.handler.GoodsCategoryTreeHandler;
+import com.jinHan.shop.core.goodsCategory.domain.handler.GoodsCategoryUpdateHandler;
 import com.jinHan.shop.core.goodsCategory.domain.model.GoodsCategory;
 import com.jinHan.shop.core.goodsCategory.domain.model.GoodsCategoryTreeVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Null;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,6 +44,9 @@ public class CategoryController {
     @Resource
     private GoodsCategoryTreeHandler goodsCategoryTreeHandler;
 
+    @Resource
+    private GoodsCategoryUpdateHandler goodsCategoryUpdateHandler;
+
     @Log(value = "新增商品分类", operationType = "GOODSCATEGORY_CREATE")
     @Operation(summary = "新增商品分类")
     @PostMapping("/create")
@@ -65,5 +71,14 @@ public class CategoryController {
     @SaCheckPermission(AdminPermissionConst.GOODS_CATEGORY_TREE)
     public Result<List<GoodsCategoryTreeVO>> tree() {
         return Result.success(goodsCategoryTreeHandler.treeList());
+    }
+
+    @Log(value = "编辑商品分类内容", operationType = "GOODSCATEGORY_UPDATE")
+    @Operation(summary = "编辑商品分类内容")
+    @PutMapping("/{id}")
+    @SaCheckPermission(AdminPermissionConst.GOODS_CATEGORY_TREE)
+    public Result<GoodsCategory> update(@PathVariable Long id,@RequestBody @Valid GoodsCategoryCreateCommand command) {
+        GoodsCategory goodsCategory = goodsCategoryUpdateHandler.update(new GoodsCategoryUpdateCommand(id, command));
+        return Result.success(goodsCategory);
     }
 }

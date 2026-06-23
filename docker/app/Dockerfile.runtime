@@ -1,4 +1,5 @@
-FROM eclipse-temurin:17-jre-jammy
+ARG RUNTIME_BASE_IMAGE=eclipse-temurin:17-jre-noble
+FROM ${RUNTIME_BASE_IMAGE}
 
 ARG APP_JAR_FILE
 

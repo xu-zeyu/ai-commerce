@@ -17,7 +17,8 @@ RUN chmod +x gradlew
 RUN ./gradlew "${APP_MODULE}:bootJar" --no-daemon
 RUN cp ${APP_JAR_PATH} /tmp/app.jar
 
-FROM eclipse-temurin:17-jre-jammy
+ARG RUNTIME_BASE_IMAGE=eclipse-temurin:17-jre-noble
+FROM ${RUNTIME_BASE_IMAGE}
 
 RUN groupadd --system spring \
     && useradd --system --gid spring --create-home --home-dir /app spring \

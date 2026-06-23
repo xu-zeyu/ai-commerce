@@ -10,6 +10,7 @@ CONFIG_SERVER_JAR_DIR="$ROOT_DIR/ai-commerce-start/ai-commerce-starter-config-se
 ADMIN_WEB_JAR_DIR="$ROOT_DIR/jinHan-shop/jinHan-shop-admin-web/build/libs"
 BUILD_PLATFORM_DEFAULT="linux/amd64"
 PUBLISH_MODE_DEFAULT="buildx-push"
+RUNTIME_BASE_IMAGE_DEFAULT="eclipse-temurin:17-jre-noble"
 
 cd "$SCRIPT_DIR"
 
@@ -50,6 +51,11 @@ fi
 PUBLISH_MODE=${PUBLISH_MODE:-$(read_env_value PUBLISH_MODE || true)}
 if [ -z "$PUBLISH_MODE" ]; then
   PUBLISH_MODE="$PUBLISH_MODE_DEFAULT"
+fi
+
+RUNTIME_BASE_IMAGE=${RUNTIME_BASE_IMAGE:-$(read_env_value RUNTIME_BASE_IMAGE || true)}
+if [ -z "$RUNTIME_BASE_IMAGE" ]; then
+  RUNTIME_BASE_IMAGE="$RUNTIME_BASE_IMAGE_DEFAULT"
 fi
 
 CONFIG_SERVER_IMAGE_OVERRIDE=${CONFIG_SERVER_IMAGE_OVERRIDE:-$(read_env_value CONFIG_SERVER_IMAGE_OVERRIDE || true)}
@@ -105,6 +111,7 @@ fi
 
 echo "Publishing runtime images for platform: ${BUILD_PLATFORM}"
 echo "Publish mode: ${PUBLISH_MODE}"
+echo "Runtime base image: ${RUNTIME_BASE_IMAGE}"
 
 publish_with_buildx_push() {
   image_tag=$1
@@ -115,6 +122,7 @@ publish_with_buildx_push() {
     ${BUILD_EXTRA_ARGS} \
     --push \
     -f "$ROOT_DIR/docker/app/Dockerfile.runtime" \
+    --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE}" \
     --build-arg APP_JAR_FILE="${jar_file}" \
     -t "${image_tag}" \
     "$ROOT_DIR"
@@ -136,6 +144,7 @@ publish_with_load_push() {
     ${BUILD_EXTRA_ARGS} \
     --load \
     -f "$ROOT_DIR/docker/app/Dockerfile.runtime" \
+    --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE}" \
     --build-arg APP_JAR_FILE="${jar_file}" \
     -t "${image_tag}" \
     "$ROOT_DIR"
