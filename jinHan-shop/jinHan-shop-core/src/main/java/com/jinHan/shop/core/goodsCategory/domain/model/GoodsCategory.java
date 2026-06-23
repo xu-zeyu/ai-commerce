@@ -20,6 +20,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @TableName("goods_category")
 public class GoodsCategory extends BaseEntity {
+
+    /**
+     * 商品分类最大层级：最多支持三级分类
+     */
+    public static final int MAX_LEVEL = 3;
+
     /**
      * 分类ID
      */

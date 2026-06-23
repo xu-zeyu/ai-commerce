@@ -17,7 +17,6 @@ public class GoodsCategoryCreateCommand {
     private String name;
     @NotNull(message = "分类图标不能为空")
     private String icon;
-    @NotNull(message = "分类层级不能为空")
     private Integer level;
     private Integer sort;
     private int status;

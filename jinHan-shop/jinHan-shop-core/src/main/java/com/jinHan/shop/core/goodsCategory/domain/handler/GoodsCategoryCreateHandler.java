@@ -20,11 +20,27 @@ public class GoodsCategoryCreateHandler {
     private GoodsCategoryMapper goodsCategoryMapper;
 
     public Long create(GoodsCategoryCreateCommand command) {
+        // 计算分类层级：一级分类 parentId=0，子分类根据父级推导
+        int level;
+        Long parentId = command.getParent_id();
+        if (parentId == null || parentId == 0) {
+            level = 1;
+        } else {
+            GoodsCategory parent = goodsCategoryMapper.selectById(parentId);
+            if (parent == null) {
+                throw new BusinessException("父级分类不存在");
+            }
+            if (parent.getLevel() >= GoodsCategory.MAX_LEVEL) {
+                throw new BusinessException("商品分类最多支持三级，无法继续添加子分类");
+            }
+            level = parent.getLevel() + 1;
+        }
+
         GoodsCategory goodsCategory = new GoodsCategory();
-        goodsCategory.setParentId(command.getParent_id());
+        goodsCategory.setParentId(parentId);
         goodsCategory.setName(command.getName());
         goodsCategory.setIcon(command.getIcon());
-        goodsCategory.setLevel(command.getLevel());
+        goodsCategory.setLevel(level);
         goodsCategory.setSort(command.getSort());
         goodsCategory.setStatus(command.getStatus());
         int inserted = goodsCategoryMapper.insert(goodsCategory);

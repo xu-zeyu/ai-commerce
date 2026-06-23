@@ -25,11 +25,28 @@ public class GoodsCategoryUpdateHandler {
         try {
             // 构建更新条件
             LambdaUpdateWrapper<GoodsCategory> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.eq(GoodsCategory::getId, command.getId())
-                    .set(command.getParent_id() != null, GoodsCategory::getParentId, command.getParent_id())
+            updateWrapper.eq(GoodsCategory::getId, command.getId());
+
+            // 如果修改了父级分类，校验层级不超过最大限制
+            Long parentId = command.getParent_id();
+            if (parentId != null && parentId != 0) {
+                GoodsCategory parent = goodsCategoryMapper.selectById(parentId);
+                if (parent == null) {
+                    throw new BusinessException("父级分类不存在");
+                }
+                if (parent.getLevel() >= GoodsCategory.MAX_LEVEL) {
+                    throw new BusinessException("商品分类最多支持三级，无法继续添加子分类");
+                }
+                updateWrapper.set(GoodsCategory::getParentId, parentId);
+                updateWrapper.set(GoodsCategory::getLevel, parent.getLevel() + 1);
+            } else if (parentId != null && parentId == 0) {
+                updateWrapper.set(GoodsCategory::getParentId, 0);
+                updateWrapper.set(GoodsCategory::getLevel, 1);
+            }
+
+            updateWrapper
                     .set(command.getName() != null, GoodsCategory::getName, command.getName())
                     .set(command.getIcon() != null, GoodsCategory::getIcon, command.getIcon())
-                    .set(command.getLevel() != null, GoodsCategory::getLevel, command.getLevel())
                     .set(command.getSort() != null, GoodsCategory::getSort, command.getSort())
                     .set(GoodsCategory::getStatus, command.getStatus())
                     .set(GoodsCategory::getUpdatedTime, LocalDateTime.now());
