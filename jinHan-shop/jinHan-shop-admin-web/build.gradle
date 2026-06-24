@@ -10,6 +10,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.26'
     implementation(project(":ai-commerce-common"))
     implementation(project(":ai-commerce-auth"))
+    implementation(project(":ai-commerce-start:ai-commerce-starter-file"))
     implementation(project(":ai-commerce-start:ai-commerce-starter-cache"))
     implementation(project(":jinHan-shop:jinHan-shop-core"))
     implementation(project(":ai-commerce-start:ai-commerce-starter-log"))

@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 类名: goodsCategory
  * 描述: 商品分类数据库 model
@@ -61,6 +63,4 @@ public class GoodsCategory extends BaseEntity {
      * 状态：1启用 0禁用
      */
     private Integer status;
-
-
 }

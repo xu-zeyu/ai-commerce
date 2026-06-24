@@ -30,4 +30,26 @@ public final class AdminPermissionConst {
      * 商品分类 - 树形列表
      */
     public static final String GOODS_CATEGORY_TREE = "GOODS_CATEGORY_TREE";
+
+    // ==================== 商品品牌 ====================
+
+    /**
+     * 商品品牌 - 新增
+     */
+    public static final String GOODS_BRAND_CREATE = "GOODS_BRAND_CREATE";
+
+    /**
+     * 商品品牌 - 分页列表
+     */
+    public static final String GOODS_BRAND_PAGE = "GOODS_BRAND_PAGE";
+
+    /**
+     * 商品品牌 - 编辑
+     */
+    public static final String GOODS_BRAND_UPDATE = "GOODS_BRAND_UPDATE";
+
+    /**
+     * 商品品牌 - 删除
+     */
+    public static final String GOODS_BRAND_DELETE = "GOODS_BRAND_DELETE";
 }
