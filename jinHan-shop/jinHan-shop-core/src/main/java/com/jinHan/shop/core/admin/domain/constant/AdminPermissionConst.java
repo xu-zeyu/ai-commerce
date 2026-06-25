@@ -74,4 +74,26 @@ public final class AdminPermissionConst {
      * 供应商 - 删除
      */
     public static final String SUPPLIER_DELETE = "SUPPLIER_DELETE";
+
+    // ==================== 供应商品牌关系 ====================
+
+    /**
+     * 供应商品牌关系 - 新增
+     */
+    public static final String SUPPLIER_BRAND_CREATE = "SUPPLIER_BRAND_CREATE";
+
+    /**
+     * 供应商品牌关系 - 分页列表
+     */
+    public static final String SUPPLIER_BRAND_PAGE = "SUPPLIER_BRAND_PAGE";
+
+    /**
+     * 供应商品牌关系 - 编辑
+     */
+    public static final String SUPPLIER_BRAND_UPDATE = "SUPPLIER_BRAND_UPDATE";
+
+    /**
+     * 供应商品牌关系 - 删除
+     */
+    public static final String SUPPLIER_BRAND_DELETE = "SUPPLIER_BRAND_DELETE";
 }
