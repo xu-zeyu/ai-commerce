@@ -1,0 +1,57 @@
+package com.jinHan.shop.admin.controller.product;
+
+import cn.dev33.satoken.annotation.SaCheckPermission;
+import com.aicommerce.common.model.Result;
+import com.aicommerce.log.annotation.Log;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinHan.shop.core.admin.domain.constant.AdminPermissionConst;
+import com.jinHan.shop.core.product.domain.command.ProductSpuCreateCommand;
+import com.jinHan.shop.core.product.domain.command.ProductSpuPageQueryCommand;
+import com.jinHan.shop.core.product.domain.handler.ProductSpuCreateHandler;
+import com.jinHan.shop.core.product.domain.handler.ProductSpuPageQueryHandler;
+import com.jinHan.shop.core.product.domain.model.ProductSpu;
+import jakarta.annotation.Resource;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 类名: ProductSpuController
+ * 描述: 商品spu 管理
+ * 作者: xuzeyu
+ * 创建时间: 2026/6/25
+ */
+@Validated
+@RestController
+@RequestMapping("/product")
+@Tag(name = "商品spu 管理")
+public class ProductSpuController {
+
+    @Resource
+    private ProductSpuCreateHandler productSpuCreateHandler;
+
+    @Resource
+    private ProductSpuPageQueryHandler productSpuPageQueryHandler;
+
+    @Log(value = "新增商品spu", operationType = "PRODUCT_SPU_CREATE")
+    @Operation(summary = "新增商品spu")
+    @PostMapping("/create")
+    @SaCheckPermission(AdminPermissionConst.PRODUCT_SPU_CREATE)
+    public Result<Long> create(@RequestBody @Valid ProductSpuCreateCommand command) {
+        return Result.success(productSpuCreateHandler.create(command));
+    }
+
+    @Log(value = "商品spu分页列表", operationType = "PRODUCT_SPU_PAGE")
+    @Operation(summary = "商品spu分页列表")
+    @GetMapping("/page")
+    @SaCheckPermission(AdminPermissionConst.PRODUCT_SPU_PAGE)
+    public Result<IPage<ProductSpu>> queryPage(@Valid ProductSpuPageQueryCommand command) {
+        return Result.success(productSpuPageQueryHandler.queryPage(command));
+    }
+}

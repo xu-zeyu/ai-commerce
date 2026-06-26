@@ -96,4 +96,17 @@ public final class AdminPermissionConst {
      * 供应商品牌关系 - 删除
      */
     public static final String SUPPLIER_BRAND_DELETE = "SUPPLIER_BRAND_DELETE";
+
+
+    //==================== 商品SPU关系 ====================
+
+    /*
+    * 商品SPU - 新增
+    * */
+    public static final String PRODUCT_SPU_CREATE = "PRODUCT_SPU_CREATE";
+
+    /*
+    * 商品SPU - 分页列表
+    * */
+    public static final String PRODUCT_SPU_PAGE = "PRODUCT_SPU_PAGE";
 }
