@@ -1,6 +1,8 @@
 package com.jinHan.shop.core.product.domain.command;
 
 import com.aicommerce.starter.mybatis.PageParam;
+import com.jinHan.shop.core.product.domain.model.AuditStatusEnum;
+import com.jinHan.shop.core.product.domain.model.SaleStatusEnum;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -42,11 +44,11 @@ public class ProductSpuPageQueryCommand extends PageParam {
     /**
      * 销售状态筛选：0-下架 1-上架
      */
-    private Integer saleStatus;
+    private SaleStatusEnum saleStatus;
 
     /**
      * 审核状态筛选：0-待审核 1-审核通过 2-审核拒绝
      */
-    private Integer auditStatus;
+    private AuditStatusEnum auditStatus;
 
 }

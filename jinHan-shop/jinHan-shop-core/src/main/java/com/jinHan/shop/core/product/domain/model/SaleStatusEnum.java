@@ -1,5 +1,6 @@
 package com.jinHan.shop.core.product.domain.model;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
 import lombok.Getter;
 
 /**
@@ -13,6 +14,7 @@ public enum SaleStatusEnum {
     OFF_SHELF(0, "下架"),
     ON_SHELF(1, "上架");
 
+    @EnumValue
     private final Integer code;
     private final String desc;
 

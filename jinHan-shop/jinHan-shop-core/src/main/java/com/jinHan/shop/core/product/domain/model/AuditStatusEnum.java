@@ -1,5 +1,6 @@
 package com.jinHan.shop.core.product.domain.model;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
 import lombok.Getter;
 
 /**
@@ -14,6 +15,7 @@ public enum AuditStatusEnum {
     PASS(1, "审核通过"),
     REJECT(2, "审核拒绝");
 
+    @EnumValue
     private final Integer code;
     private final String desc;
 

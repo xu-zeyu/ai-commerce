@@ -38,11 +38,8 @@ public class ProductSpuCreateHandler {
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("无效的销售状态"));
 
-        // 校验审核状态
-        AuditStatusEnum auditStatusEnum = Arrays.stream(AuditStatusEnum.values())
-                .filter(e -> e.getCode().equals(command.getAuditStatus()))
-                .findFirst()
-                .orElseThrow(() -> new BusinessException("无效的审核状态"));
+        // 审核状态默认为待审核
+        AuditStatusEnum auditStatusEnum = AuditStatusEnum.PENDING;
 
         // 组装实体
         ProductSpu productSpu = new ProductSpu();
