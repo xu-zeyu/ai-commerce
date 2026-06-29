@@ -11,7 +11,7 @@ import lombok.Data;
  * 创建时间: 2026/6/25
  */
 @Data
-public class ProductSpuCreateCommand {
+public class ProductSpuCommand {
 
     /**
      * 供应商ID

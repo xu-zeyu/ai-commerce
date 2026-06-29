@@ -27,4 +27,8 @@ public class ProductSpuPageQueryResult extends ProductSpu {
      * 品牌名称
      */
     private String brandName;
+
+
+
+
 }

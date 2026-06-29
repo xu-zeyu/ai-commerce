@@ -1,8 +1,9 @@
 package com.jinHan.shop.core.product.domain.handler;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.aicommerce.common.exception.BusinessException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.jinHan.shop.core.product.domain.command.ProductSpuCreateCommand;
+import com.jinHan.shop.core.product.domain.command.ProductSpuCommand;
 import com.jinHan.shop.core.product.domain.mapper.ProductSpuMapper;
 import com.jinHan.shop.core.product.domain.model.AuditStatusEnum;
 import com.jinHan.shop.core.product.domain.model.ProductSpu;
@@ -24,7 +25,7 @@ public class ProductSpuCreateHandler {
     @Resource
     private ProductSpuMapper productSpuMapper;
 
-    public Long create(ProductSpuCreateCommand command) {
+    public Long create(ProductSpuCommand command) {
         // 校验 SPU 编码唯一性
         Long count = productSpuMapper.selectCount(new LambdaQueryWrapper<ProductSpu>()
                 .eq(ProductSpu::getSpuCode, command.getSpuCode()));
@@ -53,6 +54,7 @@ public class ProductSpuCreateHandler {
         productSpu.setAuditStatus(auditStatusEnum);
         productSpu.setSort(command.getSort());
         productSpu.setSalesCount(command.getSalesCount());
+        productSpu.setCreatedBy((Long) StpUtil.getLoginId());
 
         // 入库
         int inserted = productSpuMapper.insert(productSpu);

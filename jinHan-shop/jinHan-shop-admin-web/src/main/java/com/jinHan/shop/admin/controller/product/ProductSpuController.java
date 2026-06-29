@@ -6,10 +6,12 @@ import com.aicommerce.log.annotation.Log;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jinHan.shop.admin.controller.product.response.ProductSpuPageResponse;
 import com.jinHan.shop.core.admin.domain.constant.AdminPermissionConst;
-import com.jinHan.shop.core.product.domain.command.ProductSpuCreateCommand;
+import com.jinHan.shop.core.product.domain.command.ProductSpuCommand;
 import com.jinHan.shop.core.product.domain.command.ProductSpuPageQueryCommand;
 import com.jinHan.shop.core.product.domain.handler.ProductSpuCreateHandler;
 import com.jinHan.shop.core.product.domain.handler.ProductSpuPageQueryHandler;
+import com.jinHan.shop.core.product.domain.handler.ProductSpuUpdateHandler;
+import com.jinHan.shop.core.product.domain.model.ProductSpu;
 import com.jinHan.shop.core.product.domain.model.ProductSpuPageQueryResult;
 import jakarta.annotation.Resource;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,11 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.BeanUtils;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 类名: ProductSpuController
@@ -41,13 +39,25 @@ public class ProductSpuController {
     @Resource
     private ProductSpuPageQueryHandler productSpuPageQueryHandler;
 
+    @Resource
+    private ProductSpuUpdateHandler productSpuUpdateHandler;
+
     @Log(value = "新增商品spu", operationType = "PRODUCT_SPU_CREATE")
     @Operation(summary = "新增商品spu")
     @PostMapping("/create")
     @SaCheckPermission(AdminPermissionConst.PRODUCT_SPU_CREATE)
-    public Result<Long> create(@RequestBody @Valid ProductSpuCreateCommand command) {
+    public Result<Long> create(@RequestBody @Valid ProductSpuCommand command) {
         return Result.success(productSpuCreateHandler.create(command));
     }
+
+    @Log(value = "编辑商品spu", operationType = "PRODUCT_SPU_UPDATE")
+    @Operation(summary = "编辑商品spu")
+    @PutMapping("{id}")
+    @SaCheckPermission(AdminPermissionConst.PRODUCT_SPU_UPDATE)
+    public Result<ProductSpu> update(@RequestBody @Valid ProductSpuCommand command, @PathVariable Long id) {
+        return Result.success(productSpuUpdateHandler.update(command,id));
+    }
+
 
     @Log(value = "商品spu分页列表", operationType = "PRODUCT_SPU_PAGE")
     @Operation(summary = "商品spu分页列表")

@@ -106,6 +106,11 @@ public final class AdminPermissionConst {
     public static final String PRODUCT_SPU_CREATE = "PRODUCT_SPU_CREATE";
 
     /*
+     * 商品SPU - 新增
+     * */
+    public static final String PRODUCT_SPU_UPDATE = "PRODUCT_SPU_UPDATE";
+
+    /*
     * 商品SPU - 分页列表
     * */
     public static final String PRODUCT_SPU_PAGE = "PRODUCT_SPU_PAGE";
