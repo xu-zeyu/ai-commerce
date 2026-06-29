@@ -33,12 +33,6 @@ public class ProductSpuCreateHandler {
             throw new BusinessException("SPU编码已存在");
         }
 
-        // 校验销售状态
-        SaleStatusEnum saleStatusEnum = Arrays.stream(SaleStatusEnum.values())
-                .filter(e -> e.getCode().equals(command.getSaleStatus()))
-                .findFirst()
-                .orElseThrow(() -> new BusinessException("无效的销售状态"));
-
         // 审核状态默认为待审核
         AuditStatusEnum auditStatusEnum = AuditStatusEnum.PENDING;
 
@@ -50,11 +44,10 @@ public class ProductSpuCreateHandler {
         productSpu.setSubTitle(command.getSubTitle());
         productSpu.setCategoryId(command.getCategoryId());
         productSpu.setBrandId(command.getBrandId());
-        productSpu.setSaleStatus(saleStatusEnum);
+        productSpu.setSaleStatus(command.getSaleStatus());
         productSpu.setAuditStatus(auditStatusEnum);
         productSpu.setSort(command.getSort());
-        productSpu.setSalesCount(command.getSalesCount());
-        productSpu.setCreatedBy((Long) StpUtil.getLoginId());
+        productSpu.setCreatedBy(Long.valueOf(StpUtil.getLoginId().toString()));
 
         // 入库
         int inserted = productSpuMapper.insert(productSpu);

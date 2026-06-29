@@ -1,5 +1,6 @@
 package com.jinHan.shop.core.product.domain.command;
 
+import com.jinHan.shop.core.product.domain.model.SaleStatusEnum;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -52,15 +53,10 @@ public class ProductSpuCommand {
      * 销售状态：0-下架 1-上架
      */
     @NotNull(message = "销售状态不能为空")
-    private Integer saleStatus;
+    private SaleStatusEnum saleStatus;
 
     /**
      * 排序值
      */
     private Integer sort;
-
-    /**
-     * 销量
-     */
-    private Integer salesCount;
 }
