@@ -4,16 +4,18 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.aicommerce.common.model.Result;
 import com.aicommerce.log.annotation.Log;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jinHan.shop.admin.controller.product.response.ProductSpuPageResponse;
 import com.jinHan.shop.core.admin.domain.constant.AdminPermissionConst;
 import com.jinHan.shop.core.product.domain.command.ProductSpuCreateCommand;
 import com.jinHan.shop.core.product.domain.command.ProductSpuPageQueryCommand;
 import com.jinHan.shop.core.product.domain.handler.ProductSpuCreateHandler;
 import com.jinHan.shop.core.product.domain.handler.ProductSpuPageQueryHandler;
-import com.jinHan.shop.core.product.domain.model.ProductSpu;
+import com.jinHan.shop.core.product.domain.model.ProductSpuPageQueryResult;
 import jakarta.annotation.Resource;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.BeanUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,7 +53,14 @@ public class ProductSpuController {
     @Operation(summary = "商品spu分页列表")
     @GetMapping("/page")
     @SaCheckPermission(AdminPermissionConst.PRODUCT_SPU_PAGE)
-    public Result<IPage<ProductSpu>> queryPage(@Valid ProductSpuPageQueryCommand command) {
-        return Result.success(productSpuPageQueryHandler.queryPage(command));
+    public Result<IPage<ProductSpuPageResponse>> queryPage(@Valid ProductSpuPageQueryCommand command) {
+        IPage<ProductSpuPageQueryResult> page = productSpuPageQueryHandler.queryPage(command);
+        return Result.success(page.convert(this::convertPageResponse));
+    }
+
+    private ProductSpuPageResponse convertPageResponse(ProductSpuPageQueryResult queryResult) {
+        ProductSpuPageResponse response = new ProductSpuPageResponse();
+        BeanUtils.copyProperties(queryResult, response);
+        return response;
     }
 }
