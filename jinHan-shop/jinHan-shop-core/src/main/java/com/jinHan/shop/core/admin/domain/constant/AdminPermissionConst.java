@@ -114,4 +114,9 @@ public final class AdminPermissionConst {
     * 商品SPU - 分页列表
     * */
     public static final String PRODUCT_SPU_PAGE = "PRODUCT_SPU_PAGE";
+
+    /*
+    * 商品SPU - 删除
+    * */
+    public static final String PRODUCT_SPU_DELETE = "PRODUCT_SPU_DELETE";
 }

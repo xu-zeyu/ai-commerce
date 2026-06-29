@@ -11,6 +11,7 @@ import com.jinHan.shop.core.product.domain.command.ProductSpuPageQueryCommand;
 import com.jinHan.shop.core.product.domain.handler.ProductSpuCreateHandler;
 import com.jinHan.shop.core.product.domain.handler.ProductSpuPageQueryHandler;
 import com.jinHan.shop.core.product.domain.handler.ProductSpuUpdateHandler;
+import com.jinHan.shop.core.product.domain.handler.ProductSpuDeleteHandler;
 import com.jinHan.shop.core.product.domain.model.ProductSpu;
 import com.jinHan.shop.core.product.domain.model.ProductSpuPageQueryResult;
 import jakarta.annotation.Resource;
@@ -42,6 +43,9 @@ public class ProductSpuController {
     @Resource
     private ProductSpuUpdateHandler productSpuUpdateHandler;
 
+    @Resource
+    private ProductSpuDeleteHandler productSpuDeleteHandler;
+
     @Log(value = "新增商品spu", operationType = "PRODUCT_SPU_CREATE")
     @Operation(summary = "新增商品spu")
     @PostMapping("/create")
@@ -66,6 +70,15 @@ public class ProductSpuController {
     public Result<IPage<ProductSpuPageResponse>> queryPage(@Valid ProductSpuPageQueryCommand command) {
         IPage<ProductSpuPageQueryResult> page = productSpuPageQueryHandler.queryPage(command);
         return Result.success(page.convert(this::convertPageResponse));
+    }
+
+    @Log(value = "删除商品spu", operationType = "PRODUCT_SPU_DELETE")
+    @Operation(summary = "删除商品spu")
+    @DeleteMapping("/{id}")
+    @SaCheckPermission(AdminPermissionConst.PRODUCT_SPU_DELETE)
+    public Result<Void> delete(@PathVariable Long id) {
+        productSpuDeleteHandler.delete(id);
+        return Result.success();
     }
 
     private ProductSpuPageResponse convertPageResponse(ProductSpuPageQueryResult queryResult) {
