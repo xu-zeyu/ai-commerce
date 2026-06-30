@@ -3,6 +3,8 @@ package com.jinHan.shop.core.product.domain.model;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.List;
+
 /**
  * 类名: ProductSpuPageQueryResult
  * 描述: 商品SPU分页查询结果
@@ -29,6 +31,8 @@ public class ProductSpuPageQueryResult extends ProductSpu {
     private String brandName;
 
 
-
-
+    /**
+     * 品牌名称
+     */
+    private List<String> mainImage;
 }

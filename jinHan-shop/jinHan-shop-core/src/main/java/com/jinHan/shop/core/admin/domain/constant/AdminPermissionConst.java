@@ -119,4 +119,26 @@ public final class AdminPermissionConst {
     * 商品SPU - 删除
     * */
     public static final String PRODUCT_SPU_DELETE = "PRODUCT_SPU_DELETE";
+
+    //==================== 商品SPU图片关系 ====================
+
+    /*
+    * 商品SPU图片 - 新增
+    * */
+    public static final String PRODUCT_SPU_IMAGE_CREATE = "PRODUCT_SPU_IMAGE_CREATE";
+
+    /*
+    * 商品SPU图片 - 编辑
+    * */
+    public static final String PRODUCT_SPU_IMAGE_UPDATE = "PRODUCT_SPU_IMAGE_UPDATE";
+
+    /*
+    * 商品SPU图片 - 分页列表
+    * */
+    public static final String PRODUCT_SPU_IMAGE_PAGE = "PRODUCT_SPU_IMAGE_PAGE";
+
+    /*
+    * 商品SPU图片 - 删除
+    * */
+    public static final String PRODUCT_SPU_IMAGE_DELETE = "PRODUCT_SPU_IMAGE_DELETE";
 }
