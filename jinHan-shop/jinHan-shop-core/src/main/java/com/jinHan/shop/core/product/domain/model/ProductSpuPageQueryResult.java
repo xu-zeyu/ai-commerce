@@ -32,7 +32,7 @@ public class ProductSpuPageQueryResult extends ProductSpu {
 
 
     /**
-     * 品牌名称
+     * 主图
      */
     private List<String> mainImage;
 }

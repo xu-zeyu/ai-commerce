@@ -58,8 +58,11 @@ public class ProductSpuController {
     @Operation(summary = "编辑商品spu")
     @PutMapping("{id}")
     @SaCheckPermission(AdminPermissionConst.PRODUCT_SPU_UPDATE)
-    public Result<ProductSpu> update(@RequestBody @Valid ProductSpuCommand command, @PathVariable Long id) {
-        return Result.success(productSpuUpdateHandler.update(command,id));
+    public Result<ProductSpuPageResponse> update(@RequestBody @Valid ProductSpuCommand command, @PathVariable Long id) {
+        ProductSpu productSpu = productSpuUpdateHandler.update(command, id);
+        ProductSpuPageResponse response = new ProductSpuPageResponse();
+        BeanUtils.copyProperties(productSpu, response);
+        return Result.success(response);
     }
 
 
