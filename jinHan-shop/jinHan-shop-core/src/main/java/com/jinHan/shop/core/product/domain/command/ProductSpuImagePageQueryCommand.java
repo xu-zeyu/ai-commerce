@@ -1,6 +1,7 @@
 package com.jinHan.shop.core.product.domain.command;
 
 import com.aicommerce.starter.mybatis.PageParam;
+import com.jinHan.shop.core.product.domain.model.ImageTypeEnum;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -22,5 +23,5 @@ public class ProductSpuImagePageQueryCommand extends PageParam {
     /**
      * 图片类型筛选：1-主图 2-轮播图 3-详情图
      */
-    private Integer imageType;
+    private ImageTypeEnum imageType;
 }

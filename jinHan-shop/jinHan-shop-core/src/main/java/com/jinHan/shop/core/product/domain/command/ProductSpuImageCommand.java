@@ -1,5 +1,6 @@
 package com.jinHan.shop.core.product.domain.command;
 
+import com.jinHan.shop.core.product.domain.model.ImageTypeEnum;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -25,7 +26,7 @@ public class ProductSpuImageCommand {
      * 图片类型：1-主图 2-轮播图 3-详情图
      */
     @NotNull(message = "图片类型不能为空")
-    private Integer imageType;
+    private ImageTypeEnum imageType;
 
     /**
      * 图片地址数组

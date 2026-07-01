@@ -39,12 +39,9 @@ public class ProductSpuImage implements Serializable {
     private Long spuId;
 
     /**
-     * 图片类型
-     * 1-主图
-     * 2-轮播图
-     * 3-详情图
+     * 图片类型：1-主图 2-轮播图 3-详情图
      */
-    private Integer imageType;
+    private ImageTypeEnum imageType;
 
     /**
      * 图片地址JSON数组
