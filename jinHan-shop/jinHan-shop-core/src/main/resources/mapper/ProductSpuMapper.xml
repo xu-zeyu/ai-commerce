@@ -78,4 +78,56 @@
         </if>
         ORDER BY p.sort ASC, p.created_time DESC
     </select>
+
+
+    <resultMap id="ProductDetails" type="com.jinHan.shop.core.product.domain.model.ProductDetails">
+        <id column="id" property="id"/>
+        <result column="supplier_id" property="supplierId"/>
+        <result column="spu_code" property="spuCode"/>
+        <result column="name" property="name"/>
+        <result column="sub_title" property="subTitle"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="brand_id" property="brandId"/>
+        <result column="sale_status" property="saleStatus"/>
+        <result column="audit_status" property="auditStatus"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="created_time" property="createdTime"/>
+        <result column="updated_time" property="updatedTime"/>
+        <result column="supplier_name" property="supplierName"/>
+        <result column="category_name" property="categoryName"/>
+        <result column="brand_name" property="brandName"/>
+        <result column="main_image" property="mainImage" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+    </resultMap>
+
+    <select id="selectDetailsWithId" resultMap="ProductDetails">
+        SELECT
+        p.id,
+        p.supplier_id,
+        p.spu_code,
+        p.name,
+        p.sub_title,
+        p.category_id,
+        p.brand_id,
+        p.sale_status,
+        p.audit_status,
+        p.created_by,
+        p.updated_by,
+        p.created_time,
+        p.updated_time,
+        s.supplier_name AS supplier_name,
+        c.name AS category_name,
+        b.name AS brand_name,
+        i.image_urls AS main_image
+        FROM product_spu p
+        LEFT JOIN supplier s ON p.supplier_id = s.id
+        LEFT JOIN goods_category c ON p.category_id = c.id
+        LEFT JOIN goods_brand b ON p.brand_id = b.id
+        LEFT JOIN product_spu_image i
+        ON p.id = i.spu_id
+        AND i.image_type = 1
+        AND i.deleted = 0
+        WHERE p.deleted = 0
+            AND p.id = #{command.id}
+    </select>
 </mapper>

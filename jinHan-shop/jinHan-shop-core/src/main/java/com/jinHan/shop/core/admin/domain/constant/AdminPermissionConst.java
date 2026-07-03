@@ -163,4 +163,16 @@ public final class AdminPermissionConst {
     * 商品SKU - 删除
     * */
     public static final String PRODUCT_SKU_DELETE = "PRODUCT_SKU_DELETE";
+
+    //==================== 商品详情 ====================
+
+    /*
+     * 商品列表详情
+     * */
+    public static final String PRODUCT_PAGE_DETAILS = "PRODUCT_PAGE_DETAILS";
+
+    /*
+     * 商品新增审核
+     * */
+    public static final String PRODUCT_PAGE_AUDIT = "PRODUCT_PAGE_AUDIT";
 }

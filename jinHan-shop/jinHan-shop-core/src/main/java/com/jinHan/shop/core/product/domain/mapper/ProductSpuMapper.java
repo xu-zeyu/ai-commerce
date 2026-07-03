@@ -3,7 +3,9 @@ package com.jinHan.shop.core.product.domain.mapper;
 import com.aicommerce.starter.mybatis.mapper.BaseMapperX;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jinHan.shop.core.product.domain.command.ProductDetailsCommand;
 import com.jinHan.shop.core.product.domain.command.ProductSpuPageQueryCommand;
+import com.jinHan.shop.core.product.domain.model.ProductDetails;
 import com.jinHan.shop.core.product.domain.model.ProductSpu;
 import com.jinHan.shop.core.product.domain.model.ProductSpuPageQueryResult;
 import org.apache.ibatis.annotations.Param;
@@ -21,4 +23,9 @@ public interface ProductSpuMapper extends BaseMapperX<ProductSpu> {
      */
     IPage<ProductSpuPageQueryResult> selectPageWithName(Page<ProductSpuPageQueryResult> page,
                                                         @Param("command") ProductSpuPageQueryCommand command);
+
+    /**
+     * 商品详情
+     */
+    ProductDetails selectDetailsWithId(@Param("command") ProductDetailsCommand command);
 }
