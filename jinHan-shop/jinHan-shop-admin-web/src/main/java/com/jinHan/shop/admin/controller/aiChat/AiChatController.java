@@ -1,6 +1,5 @@
 package com.jinHan.shop.admin.controller.aiChat;
 
-import com.aicommerce.log.annotation.Log;
 import com.aicommerce.starter.aiChat.dto.request.ChatRequest;
 import com.aicommerce.starter.aiChat.service.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
