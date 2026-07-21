@@ -8,9 +8,12 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import jakarta.annotation.Resource;
-import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 /**
@@ -19,50 +22,67 @@ import java.io.IOException;
  * 作者: xuzeyu
  * 创建时间: 2026/7/21
  */
-@Component
+@Slf4j
+@Service
 public class ChatServiceImpl implements ChatService {
 
     @Resource
-    private  ModelFactory modelFactory;
+    private ModelFactory modelFactory;
 
     @Resource
-    private  AiModelMapper aiModelMapper;
+    private AiModelMapper aiModelMapper;
 
     @Override
     public void chat(Long modelId, String message, SseEmitter emitter) {
         AiModelEntity model = aiModelMapper.selectById(modelId);
+        if (model == null) {
+            throw new IllegalArgumentException("AI模型不存在，modelId=" + modelId);
+        }
 
-        StreamingChatModel chatModel =
-                modelFactory.create(model);
+        StreamingChatModel chatModel = modelFactory.create(model);
+        AtomicBoolean completed = new AtomicBoolean(false);
 
-        chatModel.chat(message,  new StreamingChatResponseHandler(){
+        emitter.onCompletion(() -> completed.set(true));
+        emitter.onTimeout(() -> completeEmitter(emitter, completed));
+        emitter.onError(error -> {
+            completed.set(true);
+            log.debug("SSE连接异常关闭: {}", error.getMessage());
+        });
 
-                    @Override
-                    public void onPartialResponse(String token){
+        chatModel.chat(message, new StreamingChatResponseHandler() {
 
-                        try {
-                            emitter.send(token);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-
-                    @Override
-                    public void onCompleteResponse(ChatResponse response){
-
-                        emitter.complete();
-
-                    }
-
-                    @Override
-                    public void onError(Throwable error){
-
-                        emitter.completeWithError(error);
-
-                    }
-
+            @Override
+            public void onPartialResponse(String token) {
+                if (completed.get()) {
+                    return;
                 }
-        );
 
+                try {
+                    emitter.send(SseEmitter.event().data(token));
+                } catch (IOException e) {
+                    completed.set(true);
+                    log.debug("客户端已断开SSE连接: {}", e.getMessage());
+                }
+            }
+
+            @Override
+            public void onCompleteResponse(ChatResponse response) {
+                completeEmitter(emitter, completed);
+            }
+
+            @Override
+            public void onError(Throwable error) {
+                if (completed.compareAndSet(false, true)) {
+                    log.error("AI流式响应失败", error);
+                    emitter.completeWithError(error);
+                }
+            }
+        });
+    }
+
+    private void completeEmitter(SseEmitter emitter, AtomicBoolean completed) {
+        if (completed.compareAndSet(false, true)) {
+            emitter.complete();
+        }
     }
 }

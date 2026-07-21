@@ -2,7 +2,6 @@ package com.aicommerce.starter.aiChat.factory;
 
 import com.aicommerce.starter.aiChat.entity.AiModelEntity;
 import dev.langchain4j.model.chat.StreamingChatModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +21,7 @@ public class ModelFactory {
     *   logRequests/logResponses  是否打印 输入/输出 信息
     * */
 
-    public StreamingChatModel create(AiModelEntity model){
+    public StreamingChatModel create(AiModelEntity model) {
         return OpenAiStreamingChatModel.builder()
                 .apiKey(model.getApiKey())
                 .baseUrl(model.getBaseUrl())
