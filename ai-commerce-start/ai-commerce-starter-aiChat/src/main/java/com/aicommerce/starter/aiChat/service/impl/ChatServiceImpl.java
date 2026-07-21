@@ -4,9 +4,14 @@ import com.aicommerce.starter.aiChat.entity.AiModelEntity;
 import com.aicommerce.starter.aiChat.factory.ModelFactory;
 import com.aicommerce.starter.aiChat.mapper.AiModelMapper;
 import com.aicommerce.starter.aiChat.service.ChatService;
-import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import java.io.IOException;
+
 
 /**
  * 类名: ChatServiceImpl
@@ -24,12 +29,40 @@ public class ChatServiceImpl implements ChatService {
     private  AiModelMapper aiModelMapper;
 
     @Override
-    public String chat(Long modelId, String message) {
+    public void chat(Long modelId, String message, SseEmitter emitter) {
         AiModelEntity model = aiModelMapper.selectById(modelId);
 
-        OpenAiChatModel chatModel =
-                modelFactory.build(model);
+        StreamingChatModel chatModel =
+                modelFactory.create(model);
 
-        return chatModel.chat(message);
+        chatModel.chat(message,  new StreamingChatResponseHandler(){
+
+                    @Override
+                    public void onPartialResponse(String token){
+
+                        try {
+                            emitter.send(token);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    @Override
+                    public void onCompleteResponse(ChatResponse response){
+
+                        emitter.complete();
+
+                    }
+
+                    @Override
+                    public void onError(Throwable error){
+
+                        emitter.completeWithError(error);
+
+                    }
+
+                }
+        );
+
     }
 }

@@ -3,6 +3,7 @@ package com.aicommerce.starter.aiChat.dto.response;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import reactor.core.publisher.Flux;
 
 /**
  * 类名: ChatResponse
@@ -15,6 +16,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ChatResponse {
 
-    private String content;
-
+    private Flux<String> content;
 }

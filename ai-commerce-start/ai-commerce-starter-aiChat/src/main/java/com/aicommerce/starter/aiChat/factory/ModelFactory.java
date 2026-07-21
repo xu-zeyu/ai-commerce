@@ -1,7 +1,9 @@
 package com.aicommerce.starter.aiChat.factory;
 
 import com.aicommerce.starter.aiChat.entity.AiModelEntity;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,9 +15,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class ModelFactory {
 
-    public OpenAiChatModel build(AiModelEntity model){
+    /*
+    *   apiKey  模型提供的 key
+    *   baseUrl  模型请求基地址
+    *   modelName 模型具体名称
+    *   logRequests/logResponses  是否打印 输入/输出 信息
+    * */
 
-        return OpenAiChatModel.builder()
+    public StreamingChatModel create(AiModelEntity model){
+        return OpenAiStreamingChatModel.builder()
                 .apiKey(model.getApiKey())
                 .baseUrl(model.getBaseUrl())
                 .modelName(model.getModelName())
