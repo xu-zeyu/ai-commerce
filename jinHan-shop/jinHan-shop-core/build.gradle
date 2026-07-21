@@ -18,6 +18,7 @@ dependencies {
     implementation(project(":ai-commerce-common"))
     implementation(project(":ai-commerce-auth"))
     api(project(":ai-commerce-start:ai-commerce-starter-mybatis"))
+    api(project(":ai-commerce-start:ai-commerce-starter-aiChat"))
     implementation(project(":ai-commerce-start:ai-commerce-starter-log"))
 }
 

@@ -76,7 +76,46 @@
         <if test="command.auditStatus != null">
             AND p.audit_status = #{command.auditStatus.code}
         </if>
-        ORDER BY p.sort ASC, p.created_time DESC
+        <choose>
+            <when test="command.sortingFields != null and command.sortingFields.size() > 0">
+                ORDER BY
+                <foreach collection="command.sortingFields" item="sortField" separator=",">
+                    <choose>
+                        <when test="sortField.field == 'sort'">
+                            p.sort
+                            <if test="sortField.order == 'desc'">DESC</if>
+                            <if test="sortField.order != 'desc'">ASC</if>
+                        </when>
+                        <when test="sortField.field == 'createdTime'">
+                            p.created_time
+                            <if test="sortField.order == 'desc'">DESC</if>
+                            <if test="sortField.order != 'desc'">ASC</if>
+                        </when>
+                        <when test="sortField.field == 'updatedTime'">
+                            p.updated_time
+                            <if test="sortField.order == 'desc'">DESC</if>
+                            <if test="sortField.order != 'desc'">ASC</if>
+                        </when>
+                        <when test="sortField.field == 'salesCount'">
+                            p.sales_count
+                            <if test="sortField.order == 'desc'">DESC</if>
+                            <if test="sortField.order != 'desc'">ASC</if>
+                        </when>
+                        <when test="sortField.field == 'name'">
+                            p.name
+                            <if test="sortField.order == 'desc'">DESC</if>
+                            <if test="sortField.order != 'desc'">ASC</if>
+                        </when>
+                        <otherwise>
+                            p.sort ASC
+                        </otherwise>
+                    </choose>
+                </foreach>
+            </when>
+            <otherwise>
+                ORDER BY p.sort ASC, p.created_time DESC
+            </otherwise>
+        </choose>
     </select>
 
 

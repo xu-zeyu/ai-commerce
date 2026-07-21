@@ -35,3 +35,6 @@ findProject(':ai-commerce-start:ai-commerce-starter-config')?.name = 'ai-commerc
 
 include 'ai-commerce-start:ai-commerce-starter-config-server'
 findProject(':ai-commerce-start:ai-commerce-starter-config-server')?.name = 'ai-commerce-starter-config-server'
+
+include 'ai-commerce-start:ai-commerce-starter-aiChat'
+findProject(':ai-commerce-start:ai-commerce-starter-aiChat')?.name = 'ai-commerce-starter-aiChat'

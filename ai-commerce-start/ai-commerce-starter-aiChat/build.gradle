@@ -1,0 +1,29 @@
+// 缓存模块配置
+description = 'ai chat组件'
+
+apply from: "${rootDir}/buildSrc/src/main/groovy/com.aicommerce.conventions.spring-boot.gradle"
+
+// 这是一个库模块，不需要可执行的 bootJar
+bootJar {
+	enabled = false
+}
+
+jar {
+	enabled = true
+}
+
+dependencies {
+	implementation(project(":ai-commerce-common"))
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok:1.18.26'
+	implementation 'dev.langchain4j:langchain4j:1.4.0'
+	implementation 'dev.langchain4j:langchain4j-open-ai:1.4.0'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation(project(":ai-commerce-auth"))
+	implementation(project(":ai-commerce-start:ai-commerce-starter-mybatis"))
+}
+
+// 测试配置
+test {
+	useJUnitPlatform()
+}

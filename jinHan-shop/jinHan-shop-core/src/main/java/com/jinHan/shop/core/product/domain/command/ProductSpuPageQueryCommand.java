@@ -1,6 +1,6 @@
 package com.jinHan.shop.core.product.domain.command;
 
-import com.aicommerce.starter.mybatis.PageParam;
+import com.aicommerce.starter.mybatis.SortablePageParam;
 import com.jinHan.shop.core.product.domain.model.AuditStatusEnum;
 import com.jinHan.shop.core.product.domain.model.SaleStatusEnum;
 import lombok.Data;
@@ -14,7 +14,7 @@ import lombok.EqualsAndHashCode;
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class ProductSpuPageQueryCommand extends PageParam {
+public class ProductSpuPageQueryCommand extends SortablePageParam {
 
     /**
      * 商品名称（模糊搜索）
