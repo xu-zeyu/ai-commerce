@@ -296,6 +296,20 @@ server {
   add_header X-Frame-Options SAMEORIGIN always;
   add_header X-XSS-Protection "1; mode=block" always;
 
+  location = /api/ai/chat {
+    proxy_pass http://jinhan_shop_admin/ai/chat;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_cache off;
+    gzip off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+  }
+
   location /api/ {
     proxy_pass http://jinhan_shop_admin/;
     proxy_http_version 1.1;

@@ -1,7 +1,6 @@
 package com.jinHan.shop.admin.config;
 
 import cn.dev33.satoken.filter.SaTokenContextFilterForJakartaServlet;
-import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpUtil;
 import jakarta.servlet.DispatcherType;
@@ -40,8 +39,8 @@ public class SaTokenConfigure implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new SaInterceptor(handler -> {
-            // 登录校验。排除开放接口与 Spring 错误分发，避免 404/异常页面再次进入鉴权链。
+        registry.addInterceptor(new SaTokenDispatchInterceptor(handler -> {
+            // 登录校验。ASYNC 和 ERROR 内部分发由拦截器直接跳过，不再重复鉴权。
             SaRouter
                     .match("/**")
                     .notMatch("/login/sms", "/public/**", "/error", "/v3/api-docs", "/v3/api-docs/**")

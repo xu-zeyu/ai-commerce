@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/ai")
 @Tag(name = "AI聊天管理")
@@ -27,14 +29,16 @@ public class AiChatController {
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "AI聊天")
-    public ResponseEntity<SseEmitter> aiChat(@Valid @RequestBody ChatRequest request) {
+    public ResponseEntity<SseEmitter> aiChat(@Valid @RequestBody ChatRequest request) throws IOException {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MILLIS);
 
+        // 先发送注释帧，尽早提交响应头并确认 SSE 连接已经建立。
+        emitter.send(SseEmitter.event().comment("connected"));
         chatService.chat(request.getModelId(), request.getMessage(), emitter);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_EVENT_STREAM)
-                .cacheControl(CacheControl.noCache())
+                .cacheControl(CacheControl.noCache().noTransform())
                 .header("X-Accel-Buffering", "no")
                 .body(emitter);
     }
