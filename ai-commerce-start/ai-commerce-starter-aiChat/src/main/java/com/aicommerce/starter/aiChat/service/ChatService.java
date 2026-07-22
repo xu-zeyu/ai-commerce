@@ -1,7 +1,7 @@
 package com.aicommerce.starter.aiChat.service;
 
 
-import dev.langchain4j.service.SystemMessage;
+import com.aicommerce.starter.aiChat.model.ChatUserTypeEnum;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 //  ModelFactory 服务
@@ -10,14 +10,12 @@ public interface ChatService {
     /**
      * 聊天窗口
      */
-    @SystemMessage
-    void chat(Long modelId, String message, SseEmitter emitter);
-
-    /*
-    * 聊天记忆
-    *
-    * */
-
-//    void chatMemory();
+    void chat(
+            ChatUserTypeEnum userType,
+            Long userId,
+            Long modelId,
+            String sessionId,
+            String message,
+            SseEmitter emitter);
 
 }

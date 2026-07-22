@@ -21,6 +21,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation(project(":ai-commerce-auth"))
 	implementation(project(":ai-commerce-start:ai-commerce-starter-mybatis"))
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 // 测试配置

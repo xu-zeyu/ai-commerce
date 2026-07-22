@@ -75,6 +75,11 @@ management:
     health:
       show-details: never
 
+ai:
+  chat:
+    memory:
+      max-tokens: ${AI_CHAT_MEMORY_MAX_TOKENS:4000}
+
 aliyun:
   oss:
     endpoint: ${ALIYUN_OSS_ENDPOINT}

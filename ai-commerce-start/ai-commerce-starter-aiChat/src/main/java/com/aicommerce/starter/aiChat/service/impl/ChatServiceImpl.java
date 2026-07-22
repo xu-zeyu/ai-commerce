@@ -4,25 +4,33 @@ import com.aicommerce.starter.aiChat.dto.response.ChatStreamResponse;
 import com.aicommerce.starter.aiChat.entity.AiModelEntity;
 import com.aicommerce.starter.aiChat.factory.ModelFactory;
 import com.aicommerce.starter.aiChat.mapper.AiModelMapper;
+import com.aicommerce.starter.aiChat.model.ChatMemoryId;
+import com.aicommerce.starter.aiChat.model.ChatUserTypeEnum;
 import com.aicommerce.starter.aiChat.service.ChatService;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.memory.ChatMemory;
+import dev.langchain4j.memory.chat.TokenWindowChatMemory;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.model.openai.OpenAiTokenCountEstimator;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
 /**
- * 类名: ChatServiceImpl
- * 描述:
- * 作者: xuzeyu
- * 创建时间: 2026/7/21
+ * AI 流式聊天服务。
  */
 @Slf4j
 @Service
@@ -33,6 +41,12 @@ public class ChatServiceImpl implements ChatService {
     private static final String ERROR_EVENT = "error";
     private static final String DONE_CONTENT = "[DONE]";
     private static final String STREAM_ERROR_MESSAGE = "AI流式响应失败，请稍后重试";
+    private static final String MEMORY_ERROR_MESSAGE = "AI回复已生成，但聊天记忆保存失败";
+
+    /**
+     * 防止同一用户、同一模型的并发请求互相覆盖记忆。
+     */
+    private final ConcurrentMap<ChatMemoryId, Object> activeChats = new ConcurrentHashMap<>();
 
     @Resource
     private ModelFactory modelFactory;
@@ -40,66 +54,115 @@ public class ChatServiceImpl implements ChatService {
     @Resource
     private AiModelMapper aiModelMapper;
 
+    @Resource
+    private ChatMemoryStore chatMemoryStore;
+
+    @Value("${ai.chat.memory.max-tokens:4000}")
+    private int maxMemoryTokens;
+
     @Override
-    public void chat(Long modelId, String message, SseEmitter emitter) {
+    public void chat(
+            ChatUserTypeEnum userType,
+            Long userId,
+            Long modelId,
+            String sessionId,
+            String message,
+            SseEmitter emitter) {
         AiModelEntity model = aiModelMapper.selectById(modelId);
         if (model == null) {
             throw new IllegalArgumentException("AI模型不存在，modelId=" + modelId);
         }
 
-        StreamingChatModel chatModel = modelFactory.create(model);
+        ChatMemoryId memoryId = new ChatMemoryId(userType, userId, modelId, sessionId);
+        Object activeChat = new Object();
+        if (activeChats.putIfAbsent(memoryId, activeChat) != null) {
+            throw new IllegalStateException("上一轮对话尚未完成，请稍后再试");
+        }
+
         AtomicBoolean completed = new AtomicBoolean(false);
+        try {
+            OpenAiTokenCountEstimator tokenCountEstimator = new OpenAiTokenCountEstimator(model.getModelName());
+            ChatMemory persistentMemory = createMemory(memoryId, tokenCountEstimator);
+            ChatMemory requestMemory = createMemory(null, tokenCountEstimator);
+            requestMemory.set(persistentMemory.messages());
+            requestMemory.add(UserMessage.from(message));
+            List<ChatMessage> requestMessages = requestMemory.messages();
+            StreamingChatModel chatModel = modelFactory.createChatModel(model);
 
-        emitter.onCompletion(() -> completed.set(true));
-        emitter.onTimeout(() -> completeEmitter(emitter, completed));
-        emitter.onError(error -> {
-            completed.set(true);
-            log.debug("SSE连接异常关闭: {}", error.getMessage());
-        });
+            emitter.onCompletion(() -> {
+                completed.set(true);
+                releaseChat(memoryId, activeChat);
+            });
+            emitter.onTimeout(() -> completeEmitter(emitter, completed, memoryId, activeChat));
+            emitter.onError(error -> {
+                completed.set(true);
+                releaseChat(memoryId, activeChat);
+                log.debug("SSE连接异常关闭: {}", error.getMessage());
+            });
 
-        chatModel.chat(message, new StreamingChatResponseHandler() {
+            chatModel.chat(requestMessages, new StreamingChatResponseHandler() {
 
-            @Override
-            public void onPartialResponse(String token) {
-                if (completed.get()) {
-                    return;
-                }
+                @Override
+                public void onPartialResponse(String token) {
+                    if (completed.get()) {
+                        return;
+                    }
 
-                try {
-                    sendEvent(emitter, MESSAGE_EVENT, token);
-                } catch (IOException e) {
-                    completed.set(true);
-                    log.debug("客户端已断开SSE连接: {}", e.getMessage());
-                }
-            }
-
-            @Override
-            public void onCompleteResponse(ChatResponse response) {
-                if (completed.compareAndSet(false, true)) {
                     try {
+                        sendEvent(emitter, MESSAGE_EVENT, token);
+                    } catch (IOException exception) {
+                        completeEmitter(emitter, completed, memoryId, activeChat);
+                        log.debug("客户端已断开SSE连接: {}", exception.getMessage());
+                    }
+                }
+
+                @Override
+                public void onCompleteResponse(ChatResponse response) {
+                    if (!completed.compareAndSet(false, true)) {
+                        releaseChat(memoryId, activeChat);
+                        return;
+                    }
+
+                    try {
+                        requestMemory.add(response.aiMessage());
+                        persistentMemory.set(requestMemory.messages());
                         sendEvent(emitter, DONE_EVENT, DONE_CONTENT);
-                    } catch (IOException e) {
-                        log.debug("发送SSE完成事件失败: {}", e.getMessage());
+                    } catch (IOException exception) {
+                        log.debug("发送SSE完成事件失败: {}", exception.getMessage());
+                    } catch (RuntimeException exception) {
+                        log.error("保存聊天记忆失败，memoryId={}", memoryId, exception);
+                        sendErrorEvent(emitter, MEMORY_ERROR_MESSAGE);
                     } finally {
+                        releaseChat(memoryId, activeChat);
                         emitter.complete();
                     }
                 }
-            }
 
-            @Override
-            public void onError(Throwable error) {
-                if (completed.compareAndSet(false, true)) {
-                    log.error("AI流式响应失败", error);
-                    try {
-                        sendEvent(emitter, ERROR_EVENT, STREAM_ERROR_MESSAGE);
-                    } catch (IOException e) {
-                        log.debug("发送SSE错误事件失败: {}", e.getMessage());
-                    } finally {
+                @Override
+                public void onError(Throwable error) {
+                    if (completed.compareAndSet(false, true)) {
+                        log.error("AI流式响应失败", error);
+                        sendErrorEvent(emitter, STREAM_ERROR_MESSAGE);
+                        releaseChat(memoryId, activeChat);
                         emitter.complete();
                     }
                 }
-            }
-        });
+            });
+        } catch (RuntimeException exception) {
+            releaseChat(memoryId, activeChat);
+            throw exception;
+        }
+    }
+
+    private ChatMemory createMemory(
+            ChatMemoryId memoryId,
+            OpenAiTokenCountEstimator tokenCountEstimator) {
+        TokenWindowChatMemory.Builder builder = TokenWindowChatMemory.builder()
+                .maxTokens(maxMemoryTokens, tokenCountEstimator);
+        if (memoryId != null) {
+            builder.id(memoryId).chatMemoryStore(chatMemoryStore);
+        }
+        return builder.build();
     }
 
     private void sendEvent(SseEmitter emitter, String eventName, String content) throws IOException {
@@ -108,9 +171,26 @@ public class ChatServiceImpl implements ChatService {
                 .data(new ChatStreamResponse(content), MediaType.APPLICATION_JSON));
     }
 
-    private void completeEmitter(SseEmitter emitter, AtomicBoolean completed) {
+    private void sendErrorEvent(SseEmitter emitter, String message) {
+        try {
+            sendEvent(emitter, ERROR_EVENT, message);
+        } catch (IOException exception) {
+            log.debug("发送SSE错误事件失败: {}", exception.getMessage());
+        }
+    }
+
+    private void completeEmitter(
+            SseEmitter emitter,
+            AtomicBoolean completed,
+            ChatMemoryId memoryId,
+            Object activeChat) {
         if (completed.compareAndSet(false, true)) {
+            releaseChat(memoryId, activeChat);
             emitter.complete();
         }
+    }
+
+    private void releaseChat(ChatMemoryId memoryId, Object activeChat) {
+        activeChats.remove(memoryId, activeChat);
     }
 }
