@@ -18,6 +18,7 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok:1.18.26'
 	implementation 'dev.langchain4j:langchain4j:1.18.0'
 	implementation 'dev.langchain4j:langchain4j-open-ai:1.18.0'
+	implementation 'com.microsoft.playwright:playwright:1.60.0'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation(project(":ai-commerce-auth"))
 	implementation(project(":ai-commerce-start:ai-commerce-starter-mybatis"))
@@ -27,4 +28,12 @@ dependencies {
 // 测试配置
 test {
 	useJUnitPlatform()
+}
+
+tasks.register('installPlaywrightChromium', JavaExec) {
+	group = 'playwright'
+	description = 'Install the Chromium binary required by the AI browser tools.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.microsoft.playwright.CLI'
+	args 'install', 'chromium'
 }

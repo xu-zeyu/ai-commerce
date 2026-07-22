@@ -56,6 +56,7 @@ class ChatServiceImplTest {
         ReflectionTestUtils.setField(chatService, "aiModelMapper", aiModelMapper);
         ReflectionTestUtils.setField(chatService, "chatMemoryStore", chatMemoryStore);
         ReflectionTestUtils.setField(chatService, "maxMemoryTokens", 4000);
+        ReflectionTestUtils.setField(chatService, "fallbackTokenizerModel", "gpt-4o-mini");
 
         AiModelEntity model = new AiModelEntity();
         model.setId(1L);
@@ -136,5 +137,33 @@ class ChatServiceImplTest {
                 new SseEmitter());
 
         assertThat(chatMemoryStore.getMessages(MEMORY_ID)).containsExactlyElementsOf(originalMessages);
+    }
+
+    @Test
+    void shouldUseFallbackTokenizerForOpenAiCompatibleModel() {
+        AiModelEntity model = aiModelMapper.selectById(1L);
+        model.setModelName("deepseek-v4-pro");
+        AtomicReference<List<ChatMessage>> requestMessages = new AtomicReference<>();
+        doAnswer(invocation -> {
+            requestMessages.set(List.copyOf(invocation.getArgument(0)));
+            StreamingChatResponseHandler handler = invocation.getArgument(1);
+            handler.onCompleteResponse(ChatResponse.builder()
+                    .aiMessage(AiMessage.from("回退分词器可用"))
+                    .build());
+            return null;
+        }).when(streamingChatModel).chat(anyList(), any(StreamingChatResponseHandler.class));
+
+        chatService.chat(
+                ChatUserTypeEnum.ADMIN,
+                1001L,
+                1L,
+                "session-a",
+                "测试DeepSeek模型",
+                new SseEmitter());
+
+        assertThat(requestMessages.get()).containsExactly(UserMessage.from("测试DeepSeek模型"));
+        assertThat(chatMemoryStore.getMessages(MEMORY_ID)).containsExactly(
+                UserMessage.from("测试DeepSeek模型"),
+                AiMessage.from("回退分词器可用"));
     }
 }

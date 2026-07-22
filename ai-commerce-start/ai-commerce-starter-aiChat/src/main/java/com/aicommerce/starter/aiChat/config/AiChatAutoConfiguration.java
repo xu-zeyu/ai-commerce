@@ -1,6 +1,7 @@
 package com.aicommerce.starter.aiChat.config;
 
 import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -11,5 +12,6 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @MapperScan(basePackages = "com.aicommerce.starter.aiChat.mapper")
+@EnableConfigurationProperties(BrowserAutomationProperties.class)
 public class AiChatAutoConfiguration {
 }

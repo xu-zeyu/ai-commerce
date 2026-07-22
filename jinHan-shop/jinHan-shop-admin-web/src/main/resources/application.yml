@@ -79,6 +79,8 @@ ai:
   chat:
     memory:
       max-tokens: ${AI_CHAT_MEMORY_MAX_TOKENS:4000}
+      # OpenAI兼容模型不被本地分词库识别时，用该模型的编码器近似估算聊天记忆Token数
+      fallback-tokenizer-model: ${AI_CHAT_MEMORY_FALLBACK_TOKENIZER_MODEL:gpt-4o-mini}
 
 aliyun:
   oss:

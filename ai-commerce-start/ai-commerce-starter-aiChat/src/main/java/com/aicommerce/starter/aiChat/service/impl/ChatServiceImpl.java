@@ -11,6 +11,7 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.TokenWindowChatMemory;
+import dev.langchain4j.model.TokenCountEstimator;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
@@ -48,6 +49,11 @@ public class ChatServiceImpl implements ChatService {
      */
     private final ConcurrentMap<ChatMemoryId, Object> activeChats = new ConcurrentHashMap<>();
 
+    /**
+     * Token估算器是不可变对象，按模型复用可避免每轮聊天重复初始化编码表。
+     */
+    private final ConcurrentMap<String, TokenCountEstimator> tokenCountEstimators = new ConcurrentHashMap<>();
+
     @Resource
     private ModelFactory modelFactory;
 
@@ -59,6 +65,9 @@ public class ChatServiceImpl implements ChatService {
 
     @Value("${ai.chat.memory.max-tokens:4000}")
     private int maxMemoryTokens;
+
+    @Value("${ai.chat.memory.fallback-tokenizer-model:gpt-4o-mini}")
+    private String fallbackTokenizerModel;
 
     @Override
     public void chat(
@@ -81,7 +90,7 @@ public class ChatServiceImpl implements ChatService {
 
         AtomicBoolean completed = new AtomicBoolean(false);
         try {
-            OpenAiTokenCountEstimator tokenCountEstimator = new OpenAiTokenCountEstimator(model.getModelName());
+            TokenCountEstimator tokenCountEstimator = createTokenCountEstimator(model.getModelName());
             ChatMemory persistentMemory = createMemory(memoryId, tokenCountEstimator);
             ChatMemory requestMemory = createMemory(null, tokenCountEstimator);
             requestMemory.set(persistentMemory.messages());
@@ -156,13 +165,39 @@ public class ChatServiceImpl implements ChatService {
 
     private ChatMemory createMemory(
             ChatMemoryId memoryId,
-            OpenAiTokenCountEstimator tokenCountEstimator) {
+            TokenCountEstimator tokenCountEstimator) {
         TokenWindowChatMemory.Builder builder = TokenWindowChatMemory.builder()
                 .maxTokens(maxMemoryTokens, tokenCountEstimator);
         if (memoryId != null) {
             builder.id(memoryId).chatMemoryStore(chatMemoryStore);
         }
         return builder.build();
+    }
+
+    private TokenCountEstimator createTokenCountEstimator(String modelName) {
+        if (modelName == null || modelName.isBlank()) {
+            throw new IllegalArgumentException("AI模型名称不能为空");
+        }
+
+        return tokenCountEstimators.computeIfAbsent(modelName, this::createTokenCountEstimatorInternal);
+    }
+
+    private TokenCountEstimator createTokenCountEstimatorInternal(String modelName) {
+        try {
+            return new OpenAiTokenCountEstimator(modelName);
+        } catch (IllegalArgumentException exception) {
+            log.warn(
+                    "模型 {} 没有可用的本地Token编码器，聊天记忆将使用 {} 近似估算",
+                    modelName,
+                    fallbackTokenizerModel);
+            try {
+                return new OpenAiTokenCountEstimator(fallbackTokenizerModel);
+            } catch (IllegalArgumentException fallbackException) {
+                throw new IllegalStateException(
+                        "聊天记忆回退Token编码器配置无效: " + fallbackTokenizerModel,
+                        fallbackException);
+            }
+        }
     }
 
     private void sendEvent(SseEmitter emitter, String eventName, String content) throws IOException {

@@ -1,5 +1,6 @@
 package com.aicommerce.starter.aiChat.service;
 
+import com.aicommerce.starter.aiChat.entity.AiChatMemoryEntity;
 import com.aicommerce.starter.aiChat.entity.AiModelEntity;
 
 import java.util.List;
@@ -13,4 +14,9 @@ public interface AiModelService {
      * 查询全部已启用的 AI 模型。
      */
     List<AiModelEntity> listAvailable();
+
+    /**
+     * 查询当前用户的会话记录。
+     */
+    List<AiChatMemoryEntity> listChat(Long userId);
 }
