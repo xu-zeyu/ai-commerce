@@ -34,9 +34,10 @@ public class BrowserMcpToolProviderFactory {
     @PostConstruct
     public void logBrowserMcpConfiguration() {
         log.info(
-                "Browser MCP配置: enabled={}, endpoint={}",
+                "Browser MCP配置: enabled={}, endpoint={}, forceToolCallOnBrowserIntent={}",
                 properties.isEnabled(),
-                maskEndpoint(properties.getEndpoint()));
+                maskEndpoint(properties.getEndpoint()),
+                properties.isForceToolCallOnBrowserIntent());
     }
 
     public boolean isEnabled() {
@@ -45,6 +46,10 @@ public class BrowserMcpToolProviderFactory {
 
     public int getMaxToolRoundTrips() {
         return properties.getMaxToolRoundTrips();
+    }
+
+    public boolean shouldForceToolCallOnBrowserIntent() {
+        return properties.isForceToolCallOnBrowserIntent();
     }
 
     public BrowserMcpSession createSession() {

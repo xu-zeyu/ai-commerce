@@ -14,6 +14,8 @@ import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.TokenWindowChatMemory;
 import dev.langchain4j.model.TokenCountEstimator;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ToolChoice;
 import dev.langchain4j.model.openai.OpenAiTokenCountEstimator;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
@@ -29,6 +31,7 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 /**
  * AI 流式聊天服务。
@@ -46,9 +49,20 @@ public class ChatServiceImpl implements ChatService {
     private static final String BROWSER_MCP_SYSTEM_MESSAGE = """
             你可以使用 Browser MCP 服务提供的浏览器工具访问和操作网页。
             当用户要求打开、浏览、搜索或操作网页时，应主动选择合适的 Browser MCP 工具完成任务。
+            需要操作网页时，必须直接返回协议定义的结构化 tool_calls；禁止用“导航到该网址”等普通文本或JSON代替工具调用。
             页面状态变化后应重新读取当前页面，再继续点击、填写或提取内容。
             不要声称自己无法访问浏览器。
             """;
+    private static final Pattern URL_PATTERN = Pattern.compile(
+            "(?i)(?:https?://|www\\.)[^\\s]+"
+    );
+    private static final Pattern BROWSER_INTENT_PATTERN = Pattern.compile(
+            "(?i)(?:(?:打开|访问|浏览|查看|导航|跳转|进入|搜索|检索).{0,40}(?:网页|网站|网址|链接|页面)|"
+                    + "(?:网页|网站|网址|链接|页面).{0,20}(?:打开|访问|浏览|查看|导航|跳转|进入|搜索|检索)|"
+                    + "点击|填写|滚动|截图|抓取|联网搜索|上网搜索|"
+                    + "(?:open|visit|browse|navigate|search).{0,40}(?:url|website|webpage|page|link|browser)|"
+                    + "(?:click|fill|scroll|screenshot))"
+    );
 
     /**
      * 防止同一用户、同一模型的并发请求互相覆盖记忆。
@@ -97,7 +111,7 @@ public class ChatServiceImpl implements ChatService {
             throw new IllegalStateException("上一轮对话尚未完成，请稍后再试");
         }
 
-        AtomicBoolean completed = new AtomicBoolean(false);
+        AtomicBoolean sseCompleted = new AtomicBoolean(false);
         BrowserMcpSession browserMcpSession;
         try {
             browserMcpSession = createBrowserMcpSession();
@@ -115,51 +129,42 @@ public class ChatServiceImpl implements ChatService {
                     .streamingChatModel(chatModel)
                     .chatMemory(requestMemory);
             if (browserMcpSession != null) {
+                boolean forceInitialToolCall = shouldForceInitialBrowserToolCall(message);
+                AtomicBoolean initialToolAwareRequest = new AtomicBoolean(true);
                 assistantBuilder.toolProvider(browserMcpSession.getToolProvider())
                         .systemMessage(BROWSER_MCP_SYSTEM_MESSAGE)
+                        .chatRequestTransformer(request -> configureBrowserToolChoice(
+                                request,
+                                initialToolAwareRequest,
+                                forceInitialToolCall))
                         .maxToolCallingRoundTrips(browserMcpToolProviderFactory.getMaxToolRoundTrips());
             }
             AiChatAssistant assistant = assistantBuilder.build();
 
-            emitter.onCompletion(() -> {
-                completed.set(true);
-                releaseChat(memoryId, activeChat);
-                closeBrowserMcpSession(browserMcpSession);
-            });
-            emitter.onTimeout(() -> completeEmitter(
-                    emitter,
-                    completed,
-                    memoryId,
-                    activeChat,
-                    browserMcpSession));
+            // SSE连接可能先于模型及工具调用结束，MCP会话只能由模型流终态关闭。
+            emitter.onCompletion(() -> sseCompleted.set(true));
+            emitter.onTimeout(() -> completeEmitter(emitter, sseCompleted));
             emitter.onError(error -> {
-                completed.set(true);
-                releaseChat(memoryId, activeChat);
-                closeBrowserMcpSession(browserMcpSession);
+                sseCompleted.set(true);
                 log.debug("SSE连接异常关闭: {}", error.getMessage());
             });
 
             TokenStream tokenStream = assistant.chat(message);
             tokenStream
                     .onPartialResponse(token -> {
-                        if (completed.get()) {
+                        if (sseCompleted.get()) {
                             return;
                         }
 
                         try {
                             sendEvent(emitter, MESSAGE_EVENT, token);
                         } catch (IOException exception) {
-                            completeEmitter(
-                                    emitter,
-                                    completed,
-                                    memoryId,
-                                    activeChat,
-                                    browserMcpSession);
+                            completeEmitter(emitter, sseCompleted);
                             log.debug("客户端已断开SSE连接: {}", exception.getMessage());
                         }
                     })
                     .onCompleteResponse(response -> {
-                        if (!completed.compareAndSet(false, true)) {
+                        if (!sseCompleted.compareAndSet(false, true)) {
                             releaseChat(memoryId, activeChat);
                             closeBrowserMcpSession(browserMcpSession);
                             return;
@@ -180,12 +185,18 @@ public class ChatServiceImpl implements ChatService {
                         }
                     })
                     .onError(error -> {
-                        if (completed.compareAndSet(false, true)) {
+                        boolean shouldNotifyClient = sseCompleted.compareAndSet(false, true);
+                        try {
                             log.error("AI流式响应失败", error);
-                            sendErrorEvent(emitter, STREAM_ERROR_MESSAGE);
+                            if (shouldNotifyClient) {
+                                sendErrorEvent(emitter, STREAM_ERROR_MESSAGE);
+                            }
+                        } finally {
                             releaseChat(memoryId, activeChat);
                             closeBrowserMcpSession(browserMcpSession);
-                            emitter.complete();
+                            if (shouldNotifyClient) {
+                                emitter.complete();
+                            }
                         }
                     })
                     .start();
@@ -201,6 +212,25 @@ public class ChatServiceImpl implements ChatService {
             return null;
         }
         return browserMcpToolProviderFactory.createSession();
+    }
+
+    private boolean shouldForceInitialBrowserToolCall(String message) {
+        if (!browserMcpToolProviderFactory.shouldForceToolCallOnBrowserIntent()) {
+            return false;
+        }
+        return message != null
+                && (URL_PATTERN.matcher(message).find() || BROWSER_INTENT_PATTERN.matcher(message).find());
+    }
+
+    private ChatRequest configureBrowserToolChoice(
+            ChatRequest request,
+            AtomicBoolean initialToolAwareRequest,
+            boolean forceInitialToolCall) {
+        if (!forceInitialToolCall) {
+            return request;
+        }
+
+        return request.toBuilder().toolChoice(ToolChoice.AUTO).build();
     }
 
     private ChatMemory createMemory(
@@ -254,15 +284,8 @@ public class ChatServiceImpl implements ChatService {
         }
     }
 
-    private void completeEmitter(
-            SseEmitter emitter,
-            AtomicBoolean completed,
-            ChatMemoryId memoryId,
-            Object activeChat,
-            BrowserMcpSession browserMcpSession) {
-        if (completed.compareAndSet(false, true)) {
-            releaseChat(memoryId, activeChat);
-            closeBrowserMcpSession(browserMcpSession);
+    private void completeEmitter(SseEmitter emitter, AtomicBoolean sseCompleted) {
+        if (sseCompleted.compareAndSet(false, true)) {
             emitter.complete();
         }
     }

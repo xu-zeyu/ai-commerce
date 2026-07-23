@@ -42,4 +42,12 @@ public class BrowserMcpProperties {
     @Min(1)
     @Max(30)
     private int maxToolRoundTrips = 12;
+
+    /**
+     * 检测到明确的浏览器操作意图时，是否强制首轮模型响应使用工具调用。
+     *
+     * <p>部分OpenAI兼容模型即使收到了tools，也不会在AUTO模式下主动生成tool_calls，
+     * 开启后会对浏览器操作请求使用REQUIRED，工具执行后的后续请求仍恢复为AUTO。</p>
+     */
+    private boolean forceToolCallOnBrowserIntent = true;
 }
