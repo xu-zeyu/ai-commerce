@@ -12,6 +12,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -50,6 +51,15 @@ public class AiChatExceptionHandler {
                         : fieldError.getDefaultMessage())
                 .orElse("参数错误");
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException exception) {
+        log.warn("AI聊天请求JSON格式错误: {}", exception.getMessage());
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "请求JSON格式错误，多行消息请使用标准JSON序列化，不要手工拼接请求体");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

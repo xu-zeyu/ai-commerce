@@ -6,16 +6,17 @@ import com.aicommerce.starter.aiChat.factory.ModelFactory;
 import com.aicommerce.starter.aiChat.mapper.AiModelMapper;
 import com.aicommerce.starter.aiChat.model.ChatMemoryId;
 import com.aicommerce.starter.aiChat.model.ChatUserTypeEnum;
+import com.aicommerce.starter.aiChat.service.AiChatAssistant;
 import com.aicommerce.starter.aiChat.service.ChatService;
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.data.message.UserMessage;
+import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserTool;
+import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserToolFactory;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.TokenWindowChatMemory;
 import dev.langchain4j.model.TokenCountEstimator;
 import dev.langchain4j.model.chat.StreamingChatModel;
-import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import dev.langchain4j.model.openai.OpenAiTokenCountEstimator;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,6 +63,9 @@ public class ChatServiceImpl implements ChatService {
     @Resource
     private ChatMemoryStore chatMemoryStore;
 
+    @Resource
+    private PlaywrightBrowserToolFactory browserToolFactory;
+
     @Value("${ai.chat.memory.max-tokens:4000}")
     private int maxMemoryTokens;
 
@@ -89,78 +92,102 @@ public class ChatServiceImpl implements ChatService {
         }
 
         AtomicBoolean completed = new AtomicBoolean(false);
+        PlaywrightBrowserTool browserTool = createBrowserTool();
         try {
             TokenCountEstimator tokenCountEstimator = createTokenCountEstimator(model.getModelName());
             ChatMemory persistentMemory = createMemory(memoryId, tokenCountEstimator);
             ChatMemory requestMemory = createMemory(null, tokenCountEstimator);
             requestMemory.set(persistentMemory.messages());
-            requestMemory.add(UserMessage.from(message));
-            List<ChatMessage> requestMessages = requestMemory.messages();
             StreamingChatModel chatModel = modelFactory.createChatModel(model);
+            AiServices<AiChatAssistant> assistantBuilder = AiServices.builder(AiChatAssistant.class)
+                    .streamingChatModel(chatModel)
+                    .chatMemory(requestMemory);
+            if (browserTool != null) {
+                assistantBuilder.tools(browserTool)
+                        .maxToolCallingRoundTrips(browserToolFactory.getMaxToolRoundTrips());
+            }
+            AiChatAssistant assistant = assistantBuilder.build();
 
             emitter.onCompletion(() -> {
                 completed.set(true);
                 releaseChat(memoryId, activeChat);
+                closeBrowserTool(browserTool);
             });
-            emitter.onTimeout(() -> completeEmitter(emitter, completed, memoryId, activeChat));
+            emitter.onTimeout(() -> completeEmitter(
+                    emitter,
+                    completed,
+                    memoryId,
+                    activeChat,
+                    browserTool));
             emitter.onError(error -> {
                 completed.set(true);
                 releaseChat(memoryId, activeChat);
+                closeBrowserTool(browserTool);
                 log.debug("SSE连接异常关闭: {}", error.getMessage());
             });
 
-            chatModel.chat(requestMessages, new StreamingChatResponseHandler() {
+            TokenStream tokenStream = assistant.chat(message);
+            tokenStream
+                    .onPartialResponse(token -> {
+                        if (completed.get()) {
+                            return;
+                        }
 
-                @Override
-                public void onPartialResponse(String token) {
-                    if (completed.get()) {
-                        return;
-                    }
+                        try {
+                            sendEvent(emitter, MESSAGE_EVENT, token);
+                        } catch (IOException exception) {
+                            completeEmitter(
+                                    emitter,
+                                    completed,
+                                    memoryId,
+                                    activeChat,
+                                    browserTool);
+                            log.debug("客户端已断开SSE连接: {}", exception.getMessage());
+                        }
+                    })
+                    .onCompleteResponse(response -> {
+                        if (!completed.compareAndSet(false, true)) {
+                            releaseChat(memoryId, activeChat);
+                            closeBrowserTool(browserTool);
+                            return;
+                        }
 
-                    try {
-                        sendEvent(emitter, MESSAGE_EVENT, token);
-                    } catch (IOException exception) {
-                        completeEmitter(emitter, completed, memoryId, activeChat);
-                        log.debug("客户端已断开SSE连接: {}", exception.getMessage());
-                    }
-                }
-
-                @Override
-                public void onCompleteResponse(ChatResponse response) {
-                    if (!completed.compareAndSet(false, true)) {
-                        releaseChat(memoryId, activeChat);
-                        return;
-                    }
-
-                    try {
-                        requestMemory.add(response.aiMessage());
-                        persistentMemory.set(requestMemory.messages());
-                        sendEvent(emitter, DONE_EVENT, DONE_CONTENT);
-                    } catch (IOException exception) {
-                        log.debug("发送SSE完成事件失败: {}", exception.getMessage());
-                    } catch (RuntimeException exception) {
-                        log.error("保存聊天记忆失败，memoryId={}", memoryId, exception);
-                        sendErrorEvent(emitter, MEMORY_ERROR_MESSAGE);
-                    } finally {
-                        releaseChat(memoryId, activeChat);
-                        emitter.complete();
-                    }
-                }
-
-                @Override
-                public void onError(Throwable error) {
-                    if (completed.compareAndSet(false, true)) {
-                        log.error("AI流式响应失败", error);
-                        sendErrorEvent(emitter, STREAM_ERROR_MESSAGE);
-                        releaseChat(memoryId, activeChat);
-                        emitter.complete();
-                    }
-                }
-            });
+                        try {
+                            persistentMemory.set(requestMemory.messages());
+                            sendEvent(emitter, DONE_EVENT, DONE_CONTENT);
+                        } catch (IOException exception) {
+                            log.debug("发送SSE完成事件失败: {}", exception.getMessage());
+                        } catch (RuntimeException exception) {
+                            log.error("保存聊天记忆失败，memoryId={}", memoryId, exception);
+                            sendErrorEvent(emitter, MEMORY_ERROR_MESSAGE);
+                        } finally {
+                            releaseChat(memoryId, activeChat);
+                            closeBrowserTool(browserTool);
+                            emitter.complete();
+                        }
+                    })
+                    .onError(error -> {
+                        if (completed.compareAndSet(false, true)) {
+                            log.error("AI流式响应失败", error);
+                            sendErrorEvent(emitter, STREAM_ERROR_MESSAGE);
+                            releaseChat(memoryId, activeChat);
+                            closeBrowserTool(browserTool);
+                            emitter.complete();
+                        }
+                    })
+                    .start();
         } catch (RuntimeException exception) {
             releaseChat(memoryId, activeChat);
+            closeBrowserTool(browserTool);
             throw exception;
         }
+    }
+
+    private PlaywrightBrowserTool createBrowserTool() {
+        if (!browserToolFactory.isEnabled()) {
+            return null;
+        }
+        return browserToolFactory.createTool();
     }
 
     private ChatMemory createMemory(
@@ -218,10 +245,18 @@ public class ChatServiceImpl implements ChatService {
             SseEmitter emitter,
             AtomicBoolean completed,
             ChatMemoryId memoryId,
-            Object activeChat) {
+            Object activeChat,
+            PlaywrightBrowserTool browserTool) {
         if (completed.compareAndSet(false, true)) {
             releaseChat(memoryId, activeChat);
+            closeBrowserTool(browserTool);
             emitter.complete();
+        }
+    }
+
+    private void closeBrowserTool(PlaywrightBrowserTool browserTool) {
+        if (browserTool != null) {
+            browserTool.close();
         }
     }
 

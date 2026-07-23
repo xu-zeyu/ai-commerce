@@ -1,14 +1,19 @@
 package com.aicommerce.starter.aiChat.service.impl;
 
+import com.aicommerce.starter.aiChat.config.BrowserAutomationProperties;
 import com.aicommerce.starter.aiChat.entity.AiModelEntity;
 import com.aicommerce.starter.aiChat.factory.ModelFactory;
 import com.aicommerce.starter.aiChat.mapper.AiModelMapper;
 import com.aicommerce.starter.aiChat.model.ChatMemoryId;
 import com.aicommerce.starter.aiChat.model.ChatUserTypeEnum;
+import com.aicommerce.starter.aiChat.tool.browser.BrowserAccessPolicy;
+import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserTool;
+import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserToolFactory;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
@@ -25,7 +30,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +48,9 @@ class ChatServiceImplTest {
     @Mock
     private StreamingChatModel streamingChatModel;
 
+    @Mock
+    private PlaywrightBrowserToolFactory browserToolFactory;
+
     private InMemoryChatMemoryStore chatMemoryStore;
 
     private ChatServiceImpl chatService;
@@ -55,6 +62,7 @@ class ChatServiceImplTest {
         ReflectionTestUtils.setField(chatService, "modelFactory", modelFactory);
         ReflectionTestUtils.setField(chatService, "aiModelMapper", aiModelMapper);
         ReflectionTestUtils.setField(chatService, "chatMemoryStore", chatMemoryStore);
+        ReflectionTestUtils.setField(chatService, "browserToolFactory", browserToolFactory);
         ReflectionTestUtils.setField(chatService, "maxMemoryTokens", 4000);
         ReflectionTestUtils.setField(chatService, "fallbackTokenizerModel", "gpt-4o-mini");
 
@@ -63,6 +71,7 @@ class ChatServiceImplTest {
         model.setModelName("gpt-4o-mini");
         when(aiModelMapper.selectById(1L)).thenReturn(model);
         when(modelFactory.createChatModel(model)).thenReturn(streamingChatModel);
+        when(browserToolFactory.isEnabled()).thenReturn(false);
     }
 
     @Test
@@ -82,14 +91,15 @@ class ChatServiceImplTest {
                 AiMessage.from("我记住了")));
         AtomicReference<List<ChatMessage>> requestMessages = new AtomicReference<>();
         doAnswer(invocation -> {
-            requestMessages.set(List.copyOf(invocation.getArgument(0)));
+            ChatRequest request = invocation.getArgument(0);
+            requestMessages.set(List.copyOf(request.messages()));
             StreamingChatResponseHandler handler = invocation.getArgument(1);
             handler.onPartialResponse("你喜欢");
             handler.onCompleteResponse(ChatResponse.builder()
                     .aiMessage(AiMessage.from("你喜欢黑咖啡"))
                     .build());
             return null;
-        }).when(streamingChatModel).chat(anyList(), any(StreamingChatResponseHandler.class));
+        }).when(streamingChatModel).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
 
         chatService.chat(
                 ChatUserTypeEnum.ADMIN,
@@ -126,7 +136,7 @@ class ChatServiceImplTest {
             StreamingChatResponseHandler handler = invocation.getArgument(1);
             handler.onError(new IllegalStateException("模型异常"));
             return null;
-        }).when(streamingChatModel).chat(anyList(), any(StreamingChatResponseHandler.class));
+        }).when(streamingChatModel).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
 
         chatService.chat(
                 ChatUserTypeEnum.ADMIN,
@@ -145,13 +155,14 @@ class ChatServiceImplTest {
         model.setModelName("deepseek-v4-pro");
         AtomicReference<List<ChatMessage>> requestMessages = new AtomicReference<>();
         doAnswer(invocation -> {
-            requestMessages.set(List.copyOf(invocation.getArgument(0)));
+            ChatRequest request = invocation.getArgument(0);
+            requestMessages.set(List.copyOf(request.messages()));
             StreamingChatResponseHandler handler = invocation.getArgument(1);
             handler.onCompleteResponse(ChatResponse.builder()
                     .aiMessage(AiMessage.from("回退分词器可用"))
                     .build());
             return null;
-        }).when(streamingChatModel).chat(anyList(), any(StreamingChatResponseHandler.class));
+        }).when(streamingChatModel).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
 
         chatService.chat(
                 ChatUserTypeEnum.ADMIN,
@@ -165,5 +176,52 @@ class ChatServiceImplTest {
         assertThat(chatMemoryStore.getMessages(MEMORY_ID)).containsExactly(
                 UserMessage.from("测试DeepSeek模型"),
                 AiMessage.from("回退分词器可用"));
+    }
+
+    @Test
+    void shouldExposePlaywrightToolsWhenBrowserAutomationIsEnabled() {
+        BrowserAutomationProperties properties = new BrowserAutomationProperties();
+        properties.setEnabled(true);
+        properties.setAllowPrivateNetwork(true);
+        PlaywrightBrowserTool browserTool =
+                new PlaywrightBrowserTool(properties, new BrowserAccessPolicy(properties));
+        when(browserToolFactory.isEnabled()).thenReturn(true);
+        when(browserToolFactory.getMaxToolRoundTrips()).thenReturn(12);
+        when(browserToolFactory.createTool()).thenReturn(browserTool);
+
+        AtomicReference<ChatRequest> capturedRequest = new AtomicReference<>();
+        doAnswer(invocation -> {
+            ChatRequest request = invocation.getArgument(0);
+            capturedRequest.set(request);
+            StreamingChatResponseHandler handler = invocation.getArgument(1);
+            handler.onCompleteResponse(ChatResponse.builder()
+                    .aiMessage(AiMessage.from("浏览器工具已就绪"))
+                    .build());
+            return null;
+        }).when(streamingChatModel).chat(any(ChatRequest.class), any(StreamingChatResponseHandler.class));
+
+        chatService.chat(
+                ChatUserTypeEnum.ADMIN,
+                1001L,
+                1L,
+                "session-a",
+                "打开网页",
+                new SseEmitter());
+
+        assertThat(capturedRequest.get().toolSpecifications())
+                .extracting(tool -> tool.name())
+                .contains(
+                        "browserNavigate",
+                        "browserSnapshot",
+                        "browserClick",
+                        "browserFill",
+                        "browserPress",
+                        "browserSelectOption",
+                        "browserHover",
+                        "browserGetText",
+                        "browserGoBack",
+                        "browserGoForward",
+                        "browserListPages",
+                        "browserSwitchPage");
     }
 }

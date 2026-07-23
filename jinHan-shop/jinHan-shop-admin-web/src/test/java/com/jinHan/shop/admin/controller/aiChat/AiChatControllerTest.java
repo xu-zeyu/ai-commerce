@@ -69,7 +69,7 @@ class AiChatControllerTest {
             mvcResult = mockMvc.perform(post("/ai/chat")
                             .contentType(MediaType.APPLICATION_JSON)
                             .accept(MediaType.TEXT_EVENT_STREAM)
-                            .content("{\"modelId\":1,\"sessionId\":\"session-001\",\"message\":\"你好\"}"))
+                            .content("{\"modelId\":1,\"sessionId\":\"session-001\",\"message\":\"第一行\\n第二行\"}"))
                     .andExpect(request().asyncStarted())
                     .andReturn();
         }
@@ -91,7 +91,7 @@ class AiChatControllerTest {
                 eq(1001L),
                 eq(1L),
                 eq("session-001"),
-                eq("你好"),
+                eq("第一行\n第二行"),
                 any(SseEmitter.class));
     }
 
@@ -151,6 +151,33 @@ class AiChatControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(content().bytes(("event:error\n"
                         + "data:{\"code\":\"400\",\"msg\":\"会话ID不能为空\",\"data\":null}\n\n")
+                        .getBytes(StandardCharsets.UTF_8)));
+
+        verifyNoInteractions(chatService);
+    }
+
+    @Test
+    void shouldRejectMalformedJsonWithUnescapedLineBreak() throws Exception {
+        ChatService chatService = mock(ChatService.class);
+        AiChatController controller = new AiChatController();
+        ReflectionTestUtils.setField(controller, "chatService", chatService);
+        MockMvc mockMvc = standaloneSetup(controller)
+                .setControllerAdvice(new AiChatExceptionHandler(new ObjectMapper()))
+                .build();
+
+        String malformedJson = """
+                {"modelId":1,"sessionId":"session-001","message":"第一行
+                第二行"}
+                """;
+
+        mockMvc.perform(post("/ai/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .content(malformedJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(content().bytes(("event:error\n"
+                        + "data:{\"code\":\"400\",\"msg\":\"请求JSON格式错误，多行消息请使用标准JSON序列化，不要手工拼接请求体\",\"data\":null}\n\n")
                         .getBytes(StandardCharsets.UTF_8)));
 
         verifyNoInteractions(chatService);
