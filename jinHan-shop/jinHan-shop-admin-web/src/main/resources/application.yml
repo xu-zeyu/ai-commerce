@@ -84,7 +84,7 @@ ai:
     browser-mcp:
       enabled: ${AI_CHAT_BROWSER_MCP_ENABLED:true}
       # 独立部署的Browser MCP Streamable HTTP端点，例如 http://browser-mcp:8931/mcp
-      endpoint: ${AI_CHAT_BROWSER_MCP_ENDPOINT:http://8.163.103.108:8931/mcp}
+      endpoint: ${AI_CHAT_BROWSER_MCP_ENDPOINT:http://localhost:8931/mcp}
       bearer-token: ${AI_CHAT_BROWSER_MCP_BEARER_TOKEN:}
       timeout-millis: ${AI_CHAT_BROWSER_MCP_TIMEOUT_MILLIS:60000}
       max-tool-round-trips: ${AI_CHAT_BROWSER_MCP_MAX_TOOL_ROUND_TRIPS:12}

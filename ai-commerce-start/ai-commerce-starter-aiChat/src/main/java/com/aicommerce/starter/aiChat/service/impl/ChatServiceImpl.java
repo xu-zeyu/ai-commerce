@@ -113,12 +113,12 @@ public class ChatServiceImpl implements ChatService {
 
         AtomicBoolean sseCompleted = new AtomicBoolean(false);
         BrowserMcpSession browserMcpSession;
-        try {
-            browserMcpSession = createBrowserMcpSession();
-        } catch (RuntimeException exception) {
-            releaseChat(memoryId, activeChat);
-            throw exception;
-        }
+//        try {
+//            browserMcpSession = createBrowserMcpSession();
+//        } catch (RuntimeException exception) {
+//            releaseChat(memoryId, activeChat);
+//            throw exception;
+//        }
         try {
             TokenCountEstimator tokenCountEstimator = createTokenCountEstimator(model.getModelName());
             ChatMemory persistentMemory = createMemory(memoryId, tokenCountEstimator);
@@ -128,17 +128,17 @@ public class ChatServiceImpl implements ChatService {
             AiServices<AiChatAssistant> assistantBuilder = AiServices.builder(AiChatAssistant.class)
                     .streamingChatModel(chatModel)
                     .chatMemory(requestMemory);
-            if (browserMcpSession != null) {
-                boolean forceInitialToolCall = shouldForceInitialBrowserToolCall(message);
-                AtomicBoolean initialToolAwareRequest = new AtomicBoolean(true);
-                assistantBuilder.toolProvider(browserMcpSession.getToolProvider())
-                        .systemMessage(BROWSER_MCP_SYSTEM_MESSAGE)
-                        .chatRequestTransformer(request -> configureBrowserToolChoice(
-                                request,
-                                initialToolAwareRequest,
-                                forceInitialToolCall))
-                        .maxToolCallingRoundTrips(browserMcpToolProviderFactory.getMaxToolRoundTrips());
-            }
+//            if (browserMcpSession != null) {
+//                boolean forceInitialToolCall = shouldForceInitialBrowserToolCall(message);
+//                AtomicBoolean initialToolAwareRequest = new AtomicBoolean(true);
+//                assistantBuilder.toolProvider(browserMcpSession.getToolProvider())
+//                        .systemMessage(BROWSER_MCP_SYSTEM_MESSAGE)
+//                        .chatRequestTransformer(request -> configureBrowserToolChoice(
+//                                request,
+//                                initialToolAwareRequest,
+//                                forceInitialToolCall))
+//                        .maxToolCallingRoundTrips(browserMcpToolProviderFactory.getMaxToolRoundTrips());
+//            }
             AiChatAssistant assistant = assistantBuilder.build();
 
             // SSE连接可能先于模型及工具调用结束，MCP会话只能由模型流终态关闭。
@@ -166,7 +166,7 @@ public class ChatServiceImpl implements ChatService {
                     .onCompleteResponse(response -> {
                         if (!sseCompleted.compareAndSet(false, true)) {
                             releaseChat(memoryId, activeChat);
-                            closeBrowserMcpSession(browserMcpSession);
+//                            closeBrowserMcpSession(browserMcpSession);
                             return;
                         }
 
@@ -180,7 +180,7 @@ public class ChatServiceImpl implements ChatService {
                             sendErrorEvent(emitter, MEMORY_ERROR_MESSAGE);
                         } finally {
                             releaseChat(memoryId, activeChat);
-                            closeBrowserMcpSession(browserMcpSession);
+//                            closeBrowserMcpSession(browserMcpSession);
                             emitter.complete();
                         }
                     })
@@ -193,7 +193,7 @@ public class ChatServiceImpl implements ChatService {
                             }
                         } finally {
                             releaseChat(memoryId, activeChat);
-                            closeBrowserMcpSession(browserMcpSession);
+//                            closeBrowserMcpSession(browserMcpSession);
                             if (shouldNotifyClient) {
                                 emitter.complete();
                             }
@@ -202,7 +202,7 @@ public class ChatServiceImpl implements ChatService {
                     .start();
         } catch (RuntimeException exception) {
             releaseChat(memoryId, activeChat);
-            closeBrowserMcpSession(browserMcpSession);
+//            closeBrowserMcpSession(browserMcpSession);
             throw exception;
         }
     }

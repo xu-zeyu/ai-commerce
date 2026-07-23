@@ -1,6 +1,7 @@
 package com.aicommerce.starter.aiChat.tool.browser;
 
 import com.aicommerce.starter.aiChat.config.BrowserMcpProperties;
+import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.mcp.client.DefaultMcpClient;
 import dev.langchain4j.mcp.client.McpClient;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -59,6 +61,8 @@ public class BrowserMcpToolProviderFactory {
                 .url(endpoint)
                 .customHeaders(createHeaders())
                 .timeout(timeout)
+                .logRequests(true)
+                .logResponses(true)
                 .build();
 
         McpClient client = null;
@@ -71,6 +75,9 @@ public class BrowserMcpToolProviderFactory {
                     .toolExecutionTimeout(timeout)
                     .autoHealthCheck(false)
                     .build();
+
+            System.out.println("listTools" + client.listTools());
+
             ToolProvider toolProvider = McpToolProvider.builder()
                     .mcpClients(client)
                     .failIfOneServerFails(true)
