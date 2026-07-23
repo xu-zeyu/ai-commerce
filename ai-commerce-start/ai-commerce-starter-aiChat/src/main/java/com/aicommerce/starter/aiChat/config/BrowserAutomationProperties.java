@@ -20,7 +20,7 @@ public class BrowserAutomationProperties {
     /**
      * 是否向 AI 模型开放浏览器工具。
      */
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     /**
      * 是否使用无头浏览器。

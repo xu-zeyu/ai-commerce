@@ -43,6 +43,12 @@ public class ChatServiceImpl implements ChatService {
     private static final String DONE_CONTENT = "[DONE]";
     private static final String STREAM_ERROR_MESSAGE = "AI流式响应失败，请稍后重试";
     private static final String MEMORY_ERROR_MESSAGE = "AI回复已生成，但聊天记忆保存失败";
+    private static final String BROWSER_TOOL_SYSTEM_MESSAGE = """
+            你可以使用 Playwright 浏览器工具访问和操作网页。
+            当用户要求打开、浏览、搜索或操作网页时，应主动调用 browserNavigate，
+            再根据页面快照使用 browserClick、browserFill、browserGetText 等工具完成任务。
+            浏览器运行在服务端隔离环境中，不要声称自己无法访问浏览器。
+            """;
 
     /**
      * 防止同一用户、同一模型的并发请求互相覆盖记忆。
@@ -104,6 +110,7 @@ public class ChatServiceImpl implements ChatService {
                     .chatMemory(requestMemory);
             if (browserTool != null) {
                 assistantBuilder.tools(browserTool)
+                        .systemMessage(BROWSER_TOOL_SYSTEM_MESSAGE)
                         .maxToolCallingRoundTrips(browserToolFactory.getMaxToolRoundTrips());
             }
             AiChatAssistant assistant = assistantBuilder.build();

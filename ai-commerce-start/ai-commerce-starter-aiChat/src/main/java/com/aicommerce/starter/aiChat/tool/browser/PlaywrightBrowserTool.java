@@ -13,8 +13,12 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,6 +32,16 @@ import java.util.regex.Pattern;
 public class PlaywrightBrowserTool implements AutoCloseable {
 
     private static final Pattern ELEMENT_REFERENCE_PATTERN = Pattern.compile("^\\[?(e\\d+)]?$");
+    private static final String PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD";
+    private static final List<Path> SYSTEM_BROWSER_EXECUTABLE_PATHS = List.of(
+            Paths.get("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+            Paths.get("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+            Paths.get("/Applications/Chromium.app/Contents/MacOS/Chromium"),
+            Paths.get("/usr/bin/google-chrome"),
+            Paths.get("/usr/bin/google-chrome-stable"),
+            Paths.get("/usr/bin/microsoft-edge"),
+            Paths.get("/usr/bin/chromium"),
+            Paths.get("/usr/bin/chromium-browser"));
     private static final String INTERACTIVE_ELEMENTS_SCRIPT = """
             elements => {
               document.querySelectorAll('[data-ai-ref]').forEach(element => element.removeAttribute('data-ai-ref'));
@@ -213,12 +227,15 @@ public class PlaywrightBrowserTool implements AutoCloseable {
             return;
         }
 
-        playwright = Playwright.create();
+        Map<String, String> playwrightEnvironment = new HashMap<>();
+        playwrightEnvironment.put(PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD, "1");
+        playwright = Playwright.create(new Playwright.CreateOptions().setEnv(playwrightEnvironment));
         BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
                 .setHeadless(properties.isHeadless())
                 .setTimeout(properties.getTimeoutMillis());
-        if (properties.getExecutablePath() != null && !properties.getExecutablePath().isBlank()) {
-            launchOptions.setExecutablePath(Paths.get(properties.getExecutablePath().trim()));
+        Path executablePath = resolveExecutablePath();
+        if (executablePath != null) {
+            launchOptions.setExecutablePath(executablePath);
         }
 
         browser = playwright.chromium().launch(launchOptions);
@@ -229,6 +246,25 @@ public class PlaywrightBrowserTool implements AutoCloseable {
         context.setDefaultNavigationTimeout(properties.getTimeoutMillis());
         context.route("**/*", this::handleRoute);
         page = context.newPage();
+    }
+
+    private Path resolveExecutablePath() {
+        if (properties.getExecutablePath() != null && !properties.getExecutablePath().isBlank()) {
+            Path configuredPath = Paths.get(properties.getExecutablePath().trim());
+            if (!Files.isExecutable(configuredPath)) {
+                throw new IllegalArgumentException("配置的浏览器可执行文件不存在或不可执行: " + configuredPath);
+            }
+            return configuredPath;
+        }
+
+        return SYSTEM_BROWSER_EXECUTABLE_PATHS.stream()
+                .filter(Files::isExecutable)
+                .findFirst()
+                .map(path -> {
+                    log.info("使用系统浏览器执行AI自动化: {}", path);
+                    return path;
+                })
+                .orElse(null);
     }
 
     private void handleRoute(Route route) {

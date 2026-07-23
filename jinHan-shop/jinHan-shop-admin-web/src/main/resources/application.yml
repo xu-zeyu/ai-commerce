@@ -82,7 +82,7 @@ ai:
       # OpenAI兼容模型不被本地分词库识别时，用该模型的编码器近似估算聊天记忆Token数
       fallback-tokenizer-model: ${AI_CHAT_MEMORY_FALLBACK_TOKENIZER_MODEL:gpt-4o-mini}
     browser:
-      enabled: ${AI_CHAT_BROWSER_ENABLED:false}
+      enabled: ${AI_CHAT_BROWSER_ENABLED:true}
       headless: ${AI_CHAT_BROWSER_HEADLESS:true}
       timeout-millis: ${AI_CHAT_BROWSER_TIMEOUT_MILLIS:30000}
       max-output-chars: ${AI_CHAT_BROWSER_MAX_OUTPUT_CHARS:12000}

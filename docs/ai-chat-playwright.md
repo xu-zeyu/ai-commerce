@@ -10,14 +10,14 @@
 ./gradlew :ai-commerce-start:ai-commerce-starter-aiChat:installPlaywrightChromium
 ```
 
-然后设置环境变量：
+浏览器工具默认启用。需要显式配置时可设置：
 
 ```bash
 export AI_CHAT_BROWSER_ENABLED=true
 export AI_CHAT_BROWSER_HEADLESS=true
 ```
 
-若使用 `AI_CHAT_BROWSER_EXECUTABLE_PATH` 指向系统已安装的 Chrome，可同时设置 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`，避免 Playwright 首次启动自动下载浏览器。
+运行时不会自动下载浏览器。在 macOS 和常见 Linux 路径下会自动发现系统 Chrome、Edge 或 Chromium；也可以通过 `AI_CHAT_BROWSER_EXECUTABLE_PATH` 显式指定。
 
 生产镜像发布脚本会在 `admin-web` 镜像内自动安装 Chromium，无需另外执行安装任务。
 
