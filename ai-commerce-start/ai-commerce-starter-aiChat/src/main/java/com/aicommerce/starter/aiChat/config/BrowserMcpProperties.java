@@ -17,7 +17,7 @@ public class BrowserMcpProperties {
     /**
      * 是否向 AI 模型开放 Browser MCP 工具。
      */
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     /**
      * Browser MCP 服务的 Streamable HTTP 端点。

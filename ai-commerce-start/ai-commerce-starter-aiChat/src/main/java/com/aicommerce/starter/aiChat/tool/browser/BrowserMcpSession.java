@@ -2,6 +2,7 @@ package com.aicommerce.starter.aiChat.tool.browser;
 
 import dev.langchain4j.mcp.client.McpClient;
 import dev.langchain4j.service.tool.ToolProvider;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,16 +14,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class BrowserMcpSession implements AutoCloseable {
 
     private final McpClient client;
+    @Getter
     private final ToolProvider toolProvider;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     BrowserMcpSession(McpClient client, ToolProvider toolProvider) {
         this.client = client;
         this.toolProvider = toolProvider;
-    }
-
-    public ToolProvider getToolProvider() {
-        return toolProvider;
     }
 
     @Override

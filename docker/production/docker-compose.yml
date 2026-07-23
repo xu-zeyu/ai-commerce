@@ -134,6 +134,31 @@ services:
     networks:
       - backend
 
+  browser-mcp:
+    image: ${BROWSER_MCP_IMAGE:-mcr.microsoft.com/playwright/mcp:latest}
+    container_name: browser-mcp
+    restart: unless-stopped
+    init: true
+    command:
+      - --port
+      - "8931"
+      - --host
+      - 0.0.0.0
+      - --allowed-hosts
+      - ${BROWSER_MCP_ALLOWED_HOSTS:-browser-mcp,localhost,127.0.0.1}
+      - --isolated
+    healthcheck:
+      test: ["CMD", "node", "-e", "const net=require('net');const socket=net.connect(8931,'127.0.0.1');socket.setTimeout(3000);socket.on('connect',()=>{socket.end();process.exit(0)});socket.on('error',()=>process.exit(1));socket.on('timeout',()=>process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 1gb
+    networks:
+      - backend
+
   admin-web:
     image: ${ADMIN_WEB_IMAGE:-ai-commerce/admin-web:test}
     container_name: jinhan-shop-admin-web
@@ -146,6 +171,8 @@ services:
       rabbitmq:
         condition: service_healthy
       config-server:
+        condition: service_healthy
+      browser-mcp:
         condition: service_healthy
     environment:
       SERVER_PORT: 8081
@@ -173,7 +200,7 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
       AI_CHAT_BROWSER_MCP_ENABLED: ${AI_CHAT_BROWSER_MCP_ENABLED:-true}
-      AI_CHAT_BROWSER_MCP_ENDPOINT: ${AI_CHAT_BROWSER_MCP_ENDPOINT:-}
+      AI_CHAT_BROWSER_MCP_ENDPOINT: ${AI_CHAT_BROWSER_MCP_ENDPOINT:-http://browser-mcp:8931/mcp}
       AI_CHAT_BROWSER_MCP_BEARER_TOKEN: ${AI_CHAT_BROWSER_MCP_BEARER_TOKEN:-}
       AI_CHAT_BROWSER_MCP_TIMEOUT_MILLIS: ${AI_CHAT_BROWSER_MCP_TIMEOUT_MILLIS:-60000}
       AI_CHAT_BROWSER_MCP_MAX_TOOL_ROUND_TRIPS: ${AI_CHAT_BROWSER_MCP_MAX_TOOL_ROUND_TRIPS:-12}

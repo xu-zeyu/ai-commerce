@@ -21,5 +21,5 @@ if [ -f .release.env ]; then
   set +a
 fi
 
-$COMPOSE_CMD --env-file .env -f docker-compose.yml pull config-server admin-web
+$COMPOSE_CMD --env-file .env -f docker-compose.yml pull browser-mcp config-server admin-web
 $COMPOSE_CMD --env-file .env -f docker-compose.yml up -d
