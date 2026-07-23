@@ -12,6 +12,6 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @MapperScan(basePackages = "com.aicommerce.starter.aiChat.mapper")
-@EnableConfigurationProperties(BrowserAutomationProperties.class)
+@EnableConfigurationProperties(BrowserMcpProperties.class)
 public class AiChatAutoConfiguration {
 }

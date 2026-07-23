@@ -8,8 +8,8 @@ import com.aicommerce.starter.aiChat.model.ChatMemoryId;
 import com.aicommerce.starter.aiChat.model.ChatUserTypeEnum;
 import com.aicommerce.starter.aiChat.service.AiChatAssistant;
 import com.aicommerce.starter.aiChat.service.ChatService;
-import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserTool;
-import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserToolFactory;
+import com.aicommerce.starter.aiChat.tool.browser.BrowserMcpSession;
+import com.aicommerce.starter.aiChat.tool.browser.BrowserMcpToolProviderFactory;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.TokenWindowChatMemory;
 import dev.langchain4j.model.TokenCountEstimator;
@@ -43,11 +43,11 @@ public class ChatServiceImpl implements ChatService {
     private static final String DONE_CONTENT = "[DONE]";
     private static final String STREAM_ERROR_MESSAGE = "AI流式响应失败，请稍后重试";
     private static final String MEMORY_ERROR_MESSAGE = "AI回复已生成，但聊天记忆保存失败";
-    private static final String BROWSER_TOOL_SYSTEM_MESSAGE = """
-            你可以使用 Playwright 浏览器工具访问和操作网页。
-            当用户要求打开、浏览、搜索或操作网页时，应主动调用 browserNavigate，
-            再根据页面快照使用 browserClick、browserFill、browserGetText 等工具完成任务。
-            浏览器运行在服务端隔离环境中，不要声称自己无法访问浏览器。
+    private static final String BROWSER_MCP_SYSTEM_MESSAGE = """
+            你可以使用 Browser MCP 服务提供的浏览器工具访问和操作网页。
+            当用户要求打开、浏览、搜索或操作网页时，应主动选择合适的 Browser MCP 工具完成任务。
+            页面状态变化后应重新读取当前页面，再继续点击、填写或提取内容。
+            不要声称自己无法访问浏览器。
             """;
 
     /**
@@ -70,7 +70,7 @@ public class ChatServiceImpl implements ChatService {
     private ChatMemoryStore chatMemoryStore;
 
     @Resource
-    private PlaywrightBrowserToolFactory browserToolFactory;
+    private BrowserMcpToolProviderFactory browserMcpToolProviderFactory;
 
     @Value("${ai.chat.memory.max-tokens:4000}")
     private int maxMemoryTokens;
@@ -98,7 +98,13 @@ public class ChatServiceImpl implements ChatService {
         }
 
         AtomicBoolean completed = new AtomicBoolean(false);
-        PlaywrightBrowserTool browserTool = createBrowserTool();
+        BrowserMcpSession browserMcpSession;
+        try {
+            browserMcpSession = createBrowserMcpSession();
+        } catch (RuntimeException exception) {
+            releaseChat(memoryId, activeChat);
+            throw exception;
+        }
         try {
             TokenCountEstimator tokenCountEstimator = createTokenCountEstimator(model.getModelName());
             ChatMemory persistentMemory = createMemory(memoryId, tokenCountEstimator);
@@ -108,28 +114,28 @@ public class ChatServiceImpl implements ChatService {
             AiServices<AiChatAssistant> assistantBuilder = AiServices.builder(AiChatAssistant.class)
                     .streamingChatModel(chatModel)
                     .chatMemory(requestMemory);
-            if (browserTool != null) {
-                assistantBuilder.tools(browserTool)
-                        .systemMessage(BROWSER_TOOL_SYSTEM_MESSAGE)
-                        .maxToolCallingRoundTrips(browserToolFactory.getMaxToolRoundTrips());
+            if (browserMcpSession != null) {
+                assistantBuilder.toolProvider(browserMcpSession.getToolProvider())
+                        .systemMessage(BROWSER_MCP_SYSTEM_MESSAGE)
+                        .maxToolCallingRoundTrips(browserMcpToolProviderFactory.getMaxToolRoundTrips());
             }
             AiChatAssistant assistant = assistantBuilder.build();
 
             emitter.onCompletion(() -> {
                 completed.set(true);
                 releaseChat(memoryId, activeChat);
-                closeBrowserTool(browserTool);
+                closeBrowserMcpSession(browserMcpSession);
             });
             emitter.onTimeout(() -> completeEmitter(
                     emitter,
                     completed,
                     memoryId,
                     activeChat,
-                    browserTool));
+                    browserMcpSession));
             emitter.onError(error -> {
                 completed.set(true);
                 releaseChat(memoryId, activeChat);
-                closeBrowserTool(browserTool);
+                closeBrowserMcpSession(browserMcpSession);
                 log.debug("SSE连接异常关闭: {}", error.getMessage());
             });
 
@@ -148,14 +154,14 @@ public class ChatServiceImpl implements ChatService {
                                     completed,
                                     memoryId,
                                     activeChat,
-                                    browserTool);
+                                    browserMcpSession);
                             log.debug("客户端已断开SSE连接: {}", exception.getMessage());
                         }
                     })
                     .onCompleteResponse(response -> {
                         if (!completed.compareAndSet(false, true)) {
                             releaseChat(memoryId, activeChat);
-                            closeBrowserTool(browserTool);
+                            closeBrowserMcpSession(browserMcpSession);
                             return;
                         }
 
@@ -169,7 +175,7 @@ public class ChatServiceImpl implements ChatService {
                             sendErrorEvent(emitter, MEMORY_ERROR_MESSAGE);
                         } finally {
                             releaseChat(memoryId, activeChat);
-                            closeBrowserTool(browserTool);
+                            closeBrowserMcpSession(browserMcpSession);
                             emitter.complete();
                         }
                     })
@@ -178,23 +184,23 @@ public class ChatServiceImpl implements ChatService {
                             log.error("AI流式响应失败", error);
                             sendErrorEvent(emitter, STREAM_ERROR_MESSAGE);
                             releaseChat(memoryId, activeChat);
-                            closeBrowserTool(browserTool);
+                            closeBrowserMcpSession(browserMcpSession);
                             emitter.complete();
                         }
                     })
                     .start();
         } catch (RuntimeException exception) {
             releaseChat(memoryId, activeChat);
-            closeBrowserTool(browserTool);
+            closeBrowserMcpSession(browserMcpSession);
             throw exception;
         }
     }
 
-    private PlaywrightBrowserTool createBrowserTool() {
-        if (!browserToolFactory.isEnabled()) {
+    private BrowserMcpSession createBrowserMcpSession() {
+        if (!browserMcpToolProviderFactory.isEnabled()) {
             return null;
         }
-        return browserToolFactory.createTool();
+        return browserMcpToolProviderFactory.createSession();
     }
 
     private ChatMemory createMemory(
@@ -253,17 +259,17 @@ public class ChatServiceImpl implements ChatService {
             AtomicBoolean completed,
             ChatMemoryId memoryId,
             Object activeChat,
-            PlaywrightBrowserTool browserTool) {
+            BrowserMcpSession browserMcpSession) {
         if (completed.compareAndSet(false, true)) {
             releaseChat(memoryId, activeChat);
-            closeBrowserTool(browserTool);
+            closeBrowserMcpSession(browserMcpSession);
             emitter.complete();
         }
     }
 
-    private void closeBrowserTool(PlaywrightBrowserTool browserTool) {
-        if (browserTool != null) {
-            browserTool.close();
+    private void closeBrowserMcpSession(BrowserMcpSession browserMcpSession) {
+        if (browserMcpSession != null) {
+            browserMcpSession.close();
         }
     }
 

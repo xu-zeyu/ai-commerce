@@ -116,7 +116,6 @@ echo "Runtime base image: ${RUNTIME_BASE_IMAGE}"
 publish_with_buildx_push() {
   image_tag=$1
   jar_file=$2
-  install_playwright=$3
   # shellcheck disable=SC2086
   docker buildx build \
     --platform "${BUILD_PLATFORM}" \
@@ -125,7 +124,6 @@ publish_with_buildx_push() {
     -f "$ROOT_DIR/docker/app/Dockerfile.runtime" \
     --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE}" \
     --build-arg APP_JAR_FILE="${jar_file}" \
-    --build-arg INSTALL_PLAYWRIGHT="${install_playwright}" \
     -t "${image_tag}" \
     "$ROOT_DIR"
 }
@@ -133,7 +131,6 @@ publish_with_buildx_push() {
 publish_with_load_push() {
   image_tag=$1
   jar_file=$2
-  install_playwright=$3
   case "$BUILD_PLATFORM" in
     *,*)
       echo "PUBLISH_MODE=load-push only supports a single platform, but BUILD_PLATFORM=${BUILD_PLATFORM}" >&2
@@ -149,7 +146,6 @@ publish_with_load_push() {
     -f "$ROOT_DIR/docker/app/Dockerfile.runtime" \
     --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE}" \
     --build-arg APP_JAR_FILE="${jar_file}" \
-    --build-arg INSTALL_PLAYWRIGHT="${install_playwright}" \
     -t "${image_tag}" \
     "$ROOT_DIR"
 
@@ -158,12 +154,12 @@ publish_with_load_push() {
 
 case "$PUBLISH_MODE" in
   buildx-push)
-    publish_with_buildx_push "${CONFIG_SERVER_IMAGE}" docker/app/dist/config-server.jar false
-    publish_with_buildx_push "${ADMIN_WEB_IMAGE}" docker/app/dist/admin-web.jar true
+    publish_with_buildx_push "${CONFIG_SERVER_IMAGE}" docker/app/dist/config-server.jar
+    publish_with_buildx_push "${ADMIN_WEB_IMAGE}" docker/app/dist/admin-web.jar
     ;;
   load-push)
-    publish_with_load_push "${CONFIG_SERVER_IMAGE}" docker/app/dist/config-server.jar false
-    publish_with_load_push "${ADMIN_WEB_IMAGE}" docker/app/dist/admin-web.jar true
+    publish_with_load_push "${CONFIG_SERVER_IMAGE}" docker/app/dist/config-server.jar
+    publish_with_load_push "${ADMIN_WEB_IMAGE}" docker/app/dist/admin-web.jar
     ;;
   *)
     echo "Unsupported PUBLISH_MODE=${PUBLISH_MODE}. Expected buildx-push or load-push." >&2

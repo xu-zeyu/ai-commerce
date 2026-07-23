@@ -1,14 +1,13 @@
 package com.aicommerce.starter.aiChat.service.impl;
 
-import com.aicommerce.starter.aiChat.config.BrowserAutomationProperties;
 import com.aicommerce.starter.aiChat.entity.AiModelEntity;
 import com.aicommerce.starter.aiChat.factory.ModelFactory;
 import com.aicommerce.starter.aiChat.mapper.AiModelMapper;
 import com.aicommerce.starter.aiChat.model.ChatMemoryId;
 import com.aicommerce.starter.aiChat.model.ChatUserTypeEnum;
-import com.aicommerce.starter.aiChat.tool.browser.BrowserAccessPolicy;
-import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserTool;
-import com.aicommerce.starter.aiChat.tool.browser.PlaywrightBrowserToolFactory;
+import com.aicommerce.starter.aiChat.tool.browser.BrowserMcpSession;
+import com.aicommerce.starter.aiChat.tool.browser.BrowserMcpToolProviderFactory;
+import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.UserMessage;
@@ -16,6 +15,9 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
+import dev.langchain4j.service.tool.ToolProvider;
+import dev.langchain4j.service.tool.ToolProviderResult;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,7 +52,10 @@ class ChatServiceImplTest {
     private StreamingChatModel streamingChatModel;
 
     @Mock
-    private PlaywrightBrowserToolFactory browserToolFactory;
+    private BrowserMcpToolProviderFactory browserMcpToolProviderFactory;
+
+    @Mock
+    private BrowserMcpSession browserMcpSession;
 
     private InMemoryChatMemoryStore chatMemoryStore;
 
@@ -62,7 +68,7 @@ class ChatServiceImplTest {
         ReflectionTestUtils.setField(chatService, "modelFactory", modelFactory);
         ReflectionTestUtils.setField(chatService, "aiModelMapper", aiModelMapper);
         ReflectionTestUtils.setField(chatService, "chatMemoryStore", chatMemoryStore);
-        ReflectionTestUtils.setField(chatService, "browserToolFactory", browserToolFactory);
+        ReflectionTestUtils.setField(chatService, "browserMcpToolProviderFactory", browserMcpToolProviderFactory);
         ReflectionTestUtils.setField(chatService, "maxMemoryTokens", 4000);
         ReflectionTestUtils.setField(chatService, "fallbackTokenizerModel", "gpt-4o-mini");
 
@@ -71,7 +77,7 @@ class ChatServiceImplTest {
         model.setModelName("gpt-4o-mini");
         when(aiModelMapper.selectById(1L)).thenReturn(model);
         when(modelFactory.createChatModel(model)).thenReturn(streamingChatModel);
-        when(browserToolFactory.isEnabled()).thenReturn(false);
+        when(browserMcpToolProviderFactory.isEnabled()).thenReturn(false);
     }
 
     @Test
@@ -179,15 +185,16 @@ class ChatServiceImplTest {
     }
 
     @Test
-    void shouldExposePlaywrightToolsWhenBrowserAutomationIsEnabled() {
-        BrowserAutomationProperties properties = new BrowserAutomationProperties();
-        properties.setEnabled(true);
-        properties.setAllowPrivateNetwork(true);
-        PlaywrightBrowserTool browserTool =
-                new PlaywrightBrowserTool(properties, new BrowserAccessPolicy(properties));
-        when(browserToolFactory.isEnabled()).thenReturn(true);
-        when(browserToolFactory.getMaxToolRoundTrips()).thenReturn(12);
-        when(browserToolFactory.createTool()).thenReturn(browserTool);
+    void shouldExposeBrowserMcpToolsWhenBrowserMcpIsEnabled() {
+        ToolProvider toolProvider = request -> ToolProviderResult.builder()
+                .add(toolSpecification("browser_navigate"), (toolRequest, memoryId) -> "ok")
+                .add(toolSpecification("browser_snapshot"), (toolRequest, memoryId) -> "ok")
+                .add(toolSpecification("browser_click"), (toolRequest, memoryId) -> "ok")
+                .build();
+        when(browserMcpToolProviderFactory.isEnabled()).thenReturn(true);
+        when(browserMcpToolProviderFactory.getMaxToolRoundTrips()).thenReturn(12);
+        when(browserMcpToolProviderFactory.createSession()).thenReturn(browserMcpSession);
+        when(browserMcpSession.getToolProvider()).thenReturn(toolProvider);
 
         AtomicReference<ChatRequest> capturedRequest = new AtomicReference<>();
         doAnswer(invocation -> {
@@ -211,17 +218,17 @@ class ChatServiceImplTest {
         assertThat(capturedRequest.get().toolSpecifications())
                 .extracting(tool -> tool.name())
                 .contains(
-                        "browserNavigate",
-                        "browserSnapshot",
-                        "browserClick",
-                        "browserFill",
-                        "browserPress",
-                        "browserSelectOption",
-                        "browserHover",
-                        "browserGetText",
-                        "browserGoBack",
-                        "browserGoForward",
-                        "browserListPages",
-                        "browserSwitchPage");
+                        "browser_navigate",
+                        "browser_snapshot",
+                        "browser_click");
+        verify(browserMcpSession).close();
+    }
+
+    private ToolSpecification toolSpecification(String name) {
+        return ToolSpecification.builder()
+                .name(name)
+                .description(name)
+                .parameters(JsonObjectSchema.builder().build())
+                .build();
     }
 }
