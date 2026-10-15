@@ -20,6 +20,7 @@ dependencies {
     api(project(":ai-commerce-start:ai-commerce-starter-mybatis"))
     api(project(":ai-commerce-start:ai-commerce-starter-aiChat"))
     implementation(project(":ai-commerce-start:ai-commerce-starter-log"))
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 test {
