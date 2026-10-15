@@ -1,4 +1,4 @@
-package com.jinHan.shop.admin.controller.admin.request;
+package com.jinHan.shop.admin.controller.admin.dto.request;
 
 import com.jinHan.shop.core.admin.domain.command.AdminPermissionUpdateCommand;
 import lombok.Data;

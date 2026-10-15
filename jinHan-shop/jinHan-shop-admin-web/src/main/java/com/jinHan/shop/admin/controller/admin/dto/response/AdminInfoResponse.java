@@ -1,4 +1,4 @@
-package com.jinHan.shop.admin.controller.admin.response;
+package com.jinHan.shop.admin.controller.admin.dto.response;
 
 import com.jinHan.shop.core.admin.domain.model.Admin;
 import com.jinHan.shop.core.admin.domain.model.AdminRole;
